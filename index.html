@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090a0d">
+  <title>WAR ROOM — It's Chess.</title>
+  <link rel="stylesheet" href="./css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+        "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="WAR ROOM home">
+        <span class="brand-mark">♛</span>
+        <span><strong>WAR ROOM</strong><small>IT'S CHESS.</small></span>
+      </a>
+      <div class="room-tag"><span class="live-dot"></span> LOCAL MATCH <span class="room-code">ROOM: PRACTICE</span></div>
+      <button id="newGameBtn" class="gold-button">New game</button>
+    </header>
+
+    <main class="layout">
+      <aside class="side-panel left-panel">
+        <div class="panel-heading">MATCH CONTROL</div>
+        <div class="player-card" id="blackPlayer">
+          <div class="player-avatar black-avatar">♚</div>
+          <div class="player-info"><strong>Black Player</strong><small id="blackState">Waiting</small></div>
+          <div class="player-clock" id="blackClock">05:00</div>
+        </div>
+        <div class="player-card active-player" id="whitePlayer">
+          <div class="player-avatar white-avatar">♔</div>
+          <div class="player-info"><strong>White Player</strong><small id="whiteState">To move</small></div>
+          <div class="player-clock" id="whiteClock">05:00</div>
+        </div>
+        <div class="control-group">
+          <div class="panel-heading">GAME</div>
+          <button id="undoBtn" class="control-button">↶ <span>Undo move</span></button>
+          <button id="flipBtn" class="control-button">⇅ <span>Flip board</span></button>
+          <button id="resetBtn" class="control-button">⟲ <span>Restart position</span></button>
+        </div>
+        <div class="move-panel">
+          <div class="panel-heading">MOVE HISTORY</div>
+          <div id="moveHistory" class="move-history"><span class="muted">No moves yet</span></div>
+        </div>
+      </aside>
+
+      <section class="board-column">
+        <div class="board-heading">
+          <div><span class="eyebrow">THE BATTLEFIELD</span><h1>Make your move.</h1></div>
+          <div class="turn-indicator"><span class="live-dot"></span><span id="turnText">White to move</span></div>
+        </div>
+        <div class="board-frame">
+          <div id="boardCanvas" class="board-canvas" aria-label="Interactive 3D chessboard"></div>
+          <div id="promotionDialog" class="promotion-dialog hidden">
+            <div class="promotion-card">
+              <strong>Choose promotion</strong>
+              <div class="promotion-options">
+                <button data-piece="q">Queen</button><button data-piece="r">Rook</button>
+                <button data-piece="b">Bishop</button><button data-piece="n">Knight</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="board-toolbar">
+          <span class="drag-hint">⤢ Drag to rotate · Scroll to zoom</span>
+          <div class="view-actions">
+            <button id="topViewBtn" class="view-button active">Top view</button>
+            <button id="resetViewBtn" class="view-button">↺ Reset view</button>
+          </div>
+        </div>
+        <div class="status-bar"><span class="status-dot"></span><span id="statusText">The board is ready. White moves first.</span></div>
+      </section>
+
+      <aside class="side-panel right-panel">
+        <div class="panel-heading">BOARD VIEW</div>
+        <p class="panel-copy">Make the battlefield yours. Drag the board to explore every angle.</p>
+        <button id="whiteSideBtn" class="view-preset">♙ <span>White side</span></button>
+        <button id="blackSideBtn" class="view-preset">♟ <span>Black side</span></button>
+        <button id="sideViewBtn" class="view-preset">◫ <span>Side view</span></button>
+        <button id="topViewBtn2" class="view-preset selected">▦ <span>Default · 5° tilt</span></button>
+        <div class="divider"></div>
+        <div class="panel-heading">HOW TO PLAY</div>
+        <p class="panel-copy">Select a piece to see its legal moves, then select a highlighted square. This build is local practice for two players sharing one screen.</p>
+        <div class="mini-note">MULTIPLAYER COMING NEXT</div>
+      </aside>
+    </main>
+    <footer><span>WAR ROOM © 2026</span><span>THINK. PLAN. STRIKE.</span><span>3D CHESS EXPERIENCE</span></footer>
+  </div>
+  <script type="module" src="./js/main.js"></script>
+</body>
+</html>
