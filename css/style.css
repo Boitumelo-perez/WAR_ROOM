@@ -15,3 +15,18 @@ button{font:inherit;cursor:pointer}.app-shell{max-width:1600px;margin:auto;paddi
 footer{border-top:1px solid var(--line);padding:17px 0 22px;display:flex;justify-content:space-between;color:#777982;font-size:9px;letter-spacing:1.5px}.promotion-dialog{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:#0009;backdrop-filter:blur(4px)}.promotion-dialog.hidden{display:none}.promotion-card{background:#17191f;border:1px solid var(--gold);border-radius:10px;padding:20px;box-shadow:0 15px 50px #000b}.promotion-card strong{display:block;margin-bottom:12px}.promotion-options{display:flex;gap:8px}.promotion-options button{background:#29251f;border:1px solid var(--line);color:var(--gold2);border-radius:5px;padding:9px 12px;font-size:11px}
 @media(max-width:1100px){.layout{grid-template-columns:190px minmax(380px,1fr);gap:18px}.right-panel{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.right-panel .panel-heading,.right-panel .panel-copy,.right-panel .divider,.right-panel .mini-note{grid-column:1/-1}.view-preset{margin:0}.board-frame{min-height:380px}}
 @media(max-width:720px){.app-shell{padding:0 12px}.topbar{height:70px}.brand strong{font-size:23px}.brand-mark{font-size:34px}.room-tag{display:none}.layout{display:flex;flex-direction:column;padding-top:16px}.board-column{order:1;width:100%}.left-panel{order:2;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px}.left-panel>.panel-heading,.move-panel{grid-column:1/-1}.control-group{margin:0;padding:0;border:0}.player-card{margin:0}.right-panel{order:3;width:100%;display:block}.board-frame{min-height:0;max-height:none}.board-heading h1{font-size:24px}.turn-indicator{font-size:9px}.drag-hint{font-size:9px}.view-button{padding:7px}.right-panel .view-preset{margin-bottom:7px}footer{font-size:8px}}
+
+.player-clock {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.player-clock.clock-low {
+  color: #ff6868;
+  animation: clock-warning 1s infinite alternate;
+}
+
+@keyframes clock-warning {
+  from { opacity: 1; }
+  to { opacity: 0.55; }
+}

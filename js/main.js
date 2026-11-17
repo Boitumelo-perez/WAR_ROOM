@@ -161,6 +161,129 @@ function drawHighlights(){
   }
 }
 const game=new Chess();
+
+
+// ==========================================
+// WAR ROOM CHESS CLOCK
+// ==========================================
+
+const INITIAL_TIME = 5 * 60 * 1000; // 5 minutes
+
+let remainingTime = {
+  w: INITIAL_TIME,
+  b: INITIAL_TIME
+};
+
+let activeClock = 'w';
+let lastClockUpdate = Date.now();
+let clockTimer = null;
+let gameFlagged = false;
+
+function formatClock(milliseconds) {
+  const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function renderClocks() {
+  document.querySelector('#whiteClock').textContent =
+    formatClock(remainingTime.w);
+
+  document.querySelector('#blackClock').textContent =
+    formatClock(remainingTime.b);
+
+  document.querySelector('#whiteClock').classList.toggle(
+    'clock-low',
+    remainingTime.w <= 30000
+  );
+
+  document.querySelector('#blackClock').classList.toggle(
+    'clock-low',
+    remainingTime.b <= 30000
+  );
+}
+
+function stopClock() {
+  activeClock = null;
+
+  if (clockTimer) {
+    clearInterval(clockTimer);
+    clockTimer = null;
+  }
+}
+
+
+function clockTick() {
+  if (!activeClock || gameFlagged || game.isGameOver()) return;
+
+  const now = Date.now();
+  const elapsed = now - lastClockUpdate;
+
+  remainingTime[activeClock] -= elapsed;
+  lastClockUpdate = now;
+
+  if (remainingTime[activeClock] <= 0) {
+    remainingTime[activeClock] = 0;
+    gameFlagged = true;
+
+    // Preserve the expired side before stopping the clock
+    const expiredSide = activeClock;
+    const winner = expiredSide === 'w' ? 'Black' : 'White';
+
+    stopClock();
+    renderClocks();
+
+    document.querySelector('#statusText').textContent =
+      `Time expired. ${winner} wins on time.`;
+
+    document.querySelector('#turnText').textContent =
+      'Game finished';
+
+    document.querySelector('#whiteState').textContent =
+      expiredSide === 'w' ? 'Time expired' : 'Winner';
+
+    document.querySelector('#blackState').textContent =
+      expiredSide === 'b' ? 'Time expired' : 'Winner';
+
+    document.querySelector('#whitePlayer').classList.remove('active-player');
+    document.querySelector('#blackPlayer').classList.remove('active-player');
+
+    return;
+  }
+
+  renderClocks();
+}
+
+
+function switchClock() {
+  if (game.isGameOver()) {
+    stopClock();
+    return;
+  }
+
+  activeClock = game.turn();
+  lastClockUpdate = Date.now();
+  renderClocks();
+}
+
+function resetClocks() {
+  stopClock();
+
+  remainingTime.w = INITIAL_TIME;
+  remainingTime.b = INITIAL_TIME;
+
+  activeClock = 'w';
+  gameFlagged = false;
+  lastClockUpdate = Date.now();
+
+  renderClocks();
+
+  clockTimer = setInterval(clockTick, 100);
+}
+
+
 function updateStatus(){
   let text='';
   if(game.isCheckmate())text=`Checkmate — ${game.turn()==='w'?'Black':'White'} wins.`;
@@ -180,13 +303,18 @@ function updateStatus(){
 }
 function refresh(){renderPieces(game);drawHighlights();updateStatus();}
 function selectSquare(square){
-  if(game.isGameOver())return;
+  if(game.isGameOver() || gameFlagged)return;
   const piece=game.get(square);
   if(selectedSquare && legalTargets.some(m=>m.to===square)){
     const matching=legalTargets.filter(m=>m.to===square);
     const promotion=matching.find(m=>m.promotion);
     if(promotion){pendingPromotion={from:selectedSquare,to:square};document.querySelector('#promotionDialog').classList.remove('hidden');return;}
-    game.move({from:selectedSquare,to:square});selectedSquare=null;legalTargets=[];refresh();return;
+    game.move({from:selectedSquare,to:square});
+selectedSquare=null;
+legalTargets=[];
+switchClock();
+refresh();
+return;
   }
   if(piece&&piece.color===game.turn()){
     selectedSquare=square;legalTargets=game.moves({square,verbose:true});drawHighlights();
@@ -204,13 +332,26 @@ renderer.domElement.addEventListener('pointerdown',onPointerDown);
 document.querySelectorAll('.promotion-options button').forEach(button=>button.addEventListener('click',()=>{
   if(!pendingPromotion)return;
   game.move({...pendingPromotion,promotion:button.dataset.piece});
+  switchClock();
   pendingPromotion=null;document.querySelector('#promotionDialog').classList.add('hidden');
   selectedSquare=null;legalTargets=[];refresh();
 }));
-function restart(){game.reset();selectedSquare=null;legalTargets=[];pendingPromotion=null;document.querySelector('#promotionDialog').classList.add('hidden');refresh();}
+// function restart(){game.reset();selectedSquare=null;legalTargets=[];pendingPromotion=null;document.querySelector('#promotionDialog').classList.add('hidden');refresh();}
+function restart(){
+  game.reset();
+  selectedSquare=null;
+  legalTargets=[];
+  pendingPromotion=null;
+
+  document.querySelector('#promotionDialog').classList.add('hidden');
+
+  resetClocks();
+  refresh();
+}
 document.querySelector('#newGameBtn').addEventListener('click',restart);
 document.querySelector('#resetBtn').addEventListener('click',restart);
-document.querySelector('#undoBtn').addEventListener('click',()=>{if(game.undo()){selectedSquare=null;legalTargets=[];refresh();}});
+// document.querySelector('#undoBtn').addEventListener('click',()=>{if(game.undo()){selectedSquare=null;legalTargets=[];refresh();}});
+document.querySelector('#undoBtn').addEventListener('click',()=>{if(gameFlagged)return;if(game.undo()){selectedSquare=null;legalTargets=[];activeClock=game.turn();lastClockUpdate=Date.now();refresh();}});
 document.querySelector('#flipBtn').addEventListener('click',()=>{camera.position.x*=-1;camera.position.z*=-1;controls.update();});
 document.querySelector('#resetViewBtn').addEventListener('click',()=>{resetCamera();});
 document.querySelector('#topViewBtn').addEventListener('click',()=>{resetCamera();});
@@ -226,4 +367,6 @@ function resize(){
 }
 new ResizeObserver(resize).observe(mount);resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
-refresh();animate();
+resetClocks();
+refresh();
+animate();
