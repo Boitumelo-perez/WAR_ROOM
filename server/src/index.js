@@ -22,7 +22,10 @@ function createRoomCode() {
   const values = new Uint8Array(6);
   crypto.getRandomValues(values);
 
-  return Array.from(values, value => chars[value % chars.length]).join("");
+  return Array.from(
+    values,
+    value => chars[value % chars.length]
+  ).join("");
 }
 
 export default {
@@ -33,7 +36,6 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Health check
     if (url.pathname === "/api/health") {
       return json({
         service: "WAR ROOM",
@@ -41,13 +43,13 @@ export default {
       });
     }
 
-    // Create a new room
+    // Create a room
     if (url.pathname === "/api/rooms" && request.method === "POST") {
       const code = createRoomCode();
       const id = env.ROOMS.idFromName(code);
       const room = env.ROOMS.get(id);
 
-      const initResponse = await room.fetch(
+      const response = await room.fetch(
         "https://room.internal/init",
         {
           method: "POST",
@@ -56,17 +58,17 @@ export default {
         }
       );
 
-      if (!initResponse.ok) {
+      if (!response.ok) {
         return json({ error: "Could not create room." }, 500);
       }
 
       return json({
         code,
-        message: "Room created. Connect to join as the first player."
+        message: "Room created successfully."
       }, 201);
     }
 
-    // Connect to an existing room
+    // Connect to a room
     const match = url.pathname.match(
       /^\/api\/rooms\/([A-Z0-9]{6})\/connect$/
     );
@@ -92,7 +94,7 @@ export class Room {
   async fetch(request) {
     const url = new URL(request.url);
 
-    // Initialise room storage
+    // Initialise room
     if (url.pathname === "/init" && request.method === "POST") {
       const existing = await this.ctx.storage.get("state");
 
@@ -132,53 +134,61 @@ export class Room {
   }
 
   async connect(request, url) {
-    let state = await this.ctx.storage.get("state");
+    const state = await this.ctx.storage.get("state");
 
     if (!state) {
       return new Response("Room does not exist", { status: 404 });
     }
 
-    const name = (url.searchParams.get("name") || "Guest").slice(0, 30);
+    const name = (
+      url.searchParams.get("name") || "Guest"
+    ).trim().slice(0, 30) || "Guest";
+
     const requestedRole = url.searchParams.get("role") || "player";
     const suppliedToken = url.searchParams.get("token");
 
     let side = "spectator";
-    let token = suppliedToken || null;
+    let token = null;
 
     if (requestedRole !== "spectator") {
-      // Restore a previous player's seat
-      if (token) {
-        if (state.players.white?.token === token) {
+      // Reconnect using an existing player token
+      if (suppliedToken) {
+        if (state.players.white?.token === suppliedToken) {
           side = "white";
-        } else if (state.players.black?.token === token) {
+          token = suppliedToken;
+        } else if (state.players.black?.token === suppliedToken) {
           side = "black";
+          token = suppliedToken;
         }
-      }
-
-      // Assign an available seat to a new player
-      if (side === "spectator" && !token) {
+      } else {
+        // Assign an available player seat
         if (!state.players.white) {
           side = "white";
-          token = crypto.randomUUID();
         } else if (!state.players.black) {
           side = "black";
+        }
+
+        if (side !== "spectator") {
           token = crypto.randomUUID();
         }
       }
+    }
 
-      if (side !== "spectator") {
-        state.players[side] = {
-          name,
-          token,
-          connected: true
-        };
+    const connectionId = crypto.randomUUID();
 
-        if (state.players.white && state.players.black) {
-          state.status = "playing";
-        }
+    if (side === "white" || side === "black") {
+      state.players[side] = {
+        name,
+        token,
+        connectionId,
+        connected: true
+      };
 
-        await this.ctx.storage.put("state", state);
+      if (state.players.white && state.players.black) {
+        state.status = "playing";
       }
+
+      await this.ctx.storage.put("state", state);
     }
 
     const pair = new WebSocketPair();
@@ -189,9 +199,11 @@ export class Room {
 
     server.serializeAttachment({
       side,
-      token
+      token,
+      connectionId
     });
 
+    // Send the current game state immediately to this connection
     server.send(JSON.stringify({
       type: "welcome",
       side,
@@ -199,10 +211,13 @@ export class Room {
       state: this.publicState(state)
     }));
 
-    this.broadcast({
-      type: "state",
-      state: this.publicState(state)
-    });
+    // Notify everyone when a player joins or reconnects
+    if (side !== "spectator") {
+      this.broadcast({
+        type: "state",
+        state: this.publicState(state)
+      });
+    }
 
     return new Response(null, {
       status: 101,
@@ -216,42 +231,49 @@ export class Room {
     try {
       data = JSON.parse(message);
     } catch {
-      socket.send(JSON.stringify({
-        type: "error",
-        message: "Invalid message format."
-      }));
+      this.sendError(socket, "Invalid message format.");
       return;
     }
 
     const attachment = socket.deserializeAttachment() || {};
-    const side = attachment.side;
+    const { side, token, connectionId } = attachment;
 
+    // Spectators cannot change the game
     if (side !== "white" && side !== "black") {
-      socket.send(JSON.stringify({
-        type: "error",
-        message: "Spectators cannot make moves."
-      }));
+      this.sendError(socket, "Spectators cannot perform game actions.");
       return;
     }
 
     const state = await this.ctx.storage.get("state");
 
-    if (!state || state.status !== "playing") {
-      socket.send(JSON.stringify({
-        type: "error",
-        message: "The game is not currently active."
-      }));
+    if (!state) {
+      this.sendError(socket, "Room no longer exists.");
+      return;
+    }
+
+    // Reject messages from replaced or disconnected connections
+    const player = state.players[side];
+
+    if (
+      !player ||
+      player.token !== token ||
+      player.connectionId !== connectionId
+    ) {
+      this.sendError(socket, "This connection is no longer active.");
+      return;
+    }
+
+    if (state.status !== "playing") {
+      this.sendError(socket, "The game is not currently active.");
       return;
     }
 
     const chess = new Chess(state.fen);
 
+    // Handle legal chess moves
     if (data.type === "move") {
       if (chess.turn() !== (side === "white" ? "w" : "b")) {
-        socket.send(JSON.stringify({
-          type: "error",
-          message: "It is not your turn."
-        }));
+        this.sendError(socket, "It is not your turn.");
         return;
       }
 
@@ -268,14 +290,12 @@ export class Room {
       }
 
       if (!move) {
-        socket.send(JSON.stringify({
-          type: "error",
-          message: "Illegal chess move."
-        }));
+        this.sendError(socket, "Illegal chess move.");
         return;
       }
 
       state.fen = chess.fen();
+
       state.history.push({
         color: move.color,
         from: move.from,
@@ -310,8 +330,10 @@ export class Room {
       return;
     }
 
+    // Resignation
     if (data.type === "resign") {
       state.status = "finished";
+
       state.result = side === "white"
         ? "Black wins — White resigned"
         : "White wins — Black resigned";
@@ -322,7 +344,11 @@ export class Room {
         type: "state",
         state: this.publicState(state)
       });
+
+      return;
     }
+
+    this.sendError(socket, "Unknown game action.");
   }
 
   async webSocketClose(socket) {
@@ -335,15 +361,26 @@ export class Room {
 
   async disconnect(socket) {
     const attachment = socket.deserializeAttachment() || {};
-    const side = attachment.side;
+    const { side, token, connectionId } = attachment;
 
     if (side !== "white" && side !== "black") return;
 
     const state = await this.ctx.storage.get("state");
+
     if (!state?.players[side]) return;
 
-    // Only mark disconnected if this is still the active connection
-    state.players[side].connected = false;
+    const player = state.players[side];
+
+    // An old connection must never disconnect a newer connection
+    if (
+      player.token !== token ||
+      player.connectionId !== connectionId
+    ) {
+      return;
+    }
+
+    player.connected = false;
+    player.connectionId = null;
 
     await this.ctx.storage.put("state", state);
 
@@ -353,6 +390,17 @@ export class Room {
     });
   }
 
+  sendError(socket, message) {
+    try {
+      socket.send(JSON.stringify({
+        type: "error",
+        message
+      }));
+    } catch {
+      // Connection may already be closed
+    }
+  }
+
   publicState(state) {
     return {
       code: state.code,
@@ -360,6 +408,7 @@ export class Room {
       history: state.history,
       status: state.status,
       result: state.result,
+
       players: {
         white: state.players.white
           ? {
@@ -367,6 +416,7 @@ export class Room {
               connected: state.players.white.connected
             }
           : null,
+
         black: state.players.black
           ? {
               name: state.players.black.name,
@@ -377,14 +427,14 @@ export class Room {
     };
   }
 
-  async broadcast(message) {
+  broadcast(message) {
     const payload = JSON.stringify(message);
 
     for (const socket of this.ctx.getWebSockets()) {
       try {
         socket.send(payload);
       } catch {
-        // A disconnected socket will be cleaned up by its close event.
+        // Ignore disconnected sockets
       }
     }
   }
