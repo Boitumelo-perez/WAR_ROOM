@@ -1,177 +1,383 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#090a0d">
-  <title>WAR ROOM — It's Chess.</title>
-  <link rel="stylesheet" href="./css/style.css">
-  <script type="importmap">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080a0d">
+    <title>WAR ROOM — IT'S CHESS</title>
+
+    <link rel="stylesheet" href="./css/style.css">
+
+    <script type="importmap">
     {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
-        "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js"
-      }
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+            "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js"
+        }
     }
-  </script>
+    </script>
 </head>
+
 <body>
-  <div class="app-shell">
+
+    <!-- HEADER -->
     <header class="topbar">
-      <a class="brand" href="./" aria-label="WAR ROOM home">
-        <span class="brand-mark">♛</span>
-        <span><strong>WAR ROOM</strong><small>IT'S CHESS.</small></span>
-      </a>
-      <div class="room-tag"><span class="live-dot"></span> LOCAL MATCH <span class="room-code">ROOM: PRACTICE</span></div>
-      <button id="newGameBtn" class="gold-button">New game</button>
+        <div class="brand">
+            <span class="brand-mark">W</span>
+            <div>
+                <div class="brand-name">WAR ROOM</div>
+                <div class="brand-subtitle">IT'S CHESS.</div>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <span class="room-tag" id="headerRoomTag" hidden>
+                ROOM <strong id="headerRoomCode">------</strong>
+            </span>
+
+            <button id="newGameBtn" class="secondary-button" hidden>
+                New Game
+            </button>
+        </div>
     </header>
 
 
-<section class="lobby-panel" id="lobbyPanel">
-  <div class="panel-heading">WAR ROOM NETWORK</div>
+    <!-- SCREEN 1: LANDING PAGE -->
+    <section id="landingScreen" class="screen landing-screen active">
 
-  <div class="lobby-actions">
-    <button id="createRoomBtn" class="gold-button">Create Room</button>
-    <button id="joinRoomBtn" class="control-button">Join Room</button>
-    <button id="watchRoomBtn" class="control-button">Watch as Spectator</button>
-    <button id="leaveRoomBtn" class="control-button" disabled>Leave Room</button>
-  </div>
+        <div class="landing-content">
+            <div class="landing-eyebrow">THE BOARD IS YOURS</div>
 
-  <div class="room-entry">
-    <input
-      id="playerNameInput"
-      type="text"
-      maxlength="20"
-      placeholder="Your player name"
-      autocomplete="off"
-    >
+            <h1 class="landing-title">
+                ENTER THE<br>
+                <span>WAR ROOM.</span>
+            </h1>
 
-    <input
-      id="roomCodeInput"
-      type="text"
-      maxlength="6"
-      placeholder="Room code"
-      autocomplete="off"
-    >
-  </div>
+            <p class="landing-tagline">
+                Think ahead. Make your move. Own the board.
+            </p>
 
-  <div id="networkStatus" class="panel-copy">
-    Offline practice mode
-  </div>
+            <div class="mode-grid">
 
-  <div id="connectionInfo" class="panel-copy"></div>
-</section>
+                <button id="offlineBtn" class="mode-card">
+                    <span class="mode-icon">♟</span>
+                    <span class="mode-title">Offline</span>
+                    <span class="mode-description">
+                        Two players. One device. No connection required.
+                    </span>
+                    <span class="mode-action">PLAY LOCALLY →</span>
+                </button>
 
+                <button id="singleplayerBtn" class="mode-card disabled" disabled>
+                    <span class="mode-icon">♛</span>
+                    <span class="mode-title">Singleplayer</span>
+                    <span class="mode-description">
+                        Challenge an intelligent opponent.
+                    </span>
+                    <span class="mode-action">COMING SOON</span>
+                </button>
 
-    <main class="layout">
-      <section class="lobby-panel" id="lobbyPanel">
-  <div class="panel-heading">WAR ROOM NETWORK</div>
+                <button id="multiplayerBtn" class="mode-card">
+                    <span class="mode-icon">♚</span>
+                    <span class="mode-title">Multiplayer</span>
+                    <span class="mode-description">
+                        Create a room or join another player's match.
+                    </span>
+                    <span class="mode-action">ENTER ONLINE →</span>
+                </button>
 
-  <div class="lobby-actions">
-    <button id="createRoomBtn" class="gold-button">
-      Create Room
-    </button>
-
-    <button id="joinRoomBtn" class="control-button">
-      Join Room
-    </button>
-
-    <button id="watchRoomBtn" class="control-button">
-      Watch as Spectator
-    </button>
-  </div>
-
-  <div class="room-entry">
-    <input
-      id="roomCodeInput"
-      type="text"
-      maxlength="6"
-      placeholder="Enter room code"
-      autocomplete="off"
-    >
-    <input
-      id="playerNameInput"
-      type="text"
-      maxlength="20"
-      placeholder="Your player name"
-      autocomplete="off"
-    >
-  </div>
-
-  <div id="networkStatus" class="panel-copy">
-    Offline practice mode
-  </div>
-
-  <div id="connectionInfo" class="panel-copy"></div>
-</section>
-
-      <aside class="side-panel left-panel">
-        <div class="panel-heading">MATCH CONTROL</div>
-        <div class="player-card" id="blackPlayer">
-          <div class="player-avatar black-avatar">♚</div>
-          <div class="player-info"><strong>Black Player</strong><small id="blackState">Waiting</small></div>
-          <div class="player-clock" id="blackClock">05:00</div>
-        </div>
-        <div class="player-card active-player" id="whitePlayer">
-          <div class="player-avatar white-avatar">♔</div>
-          <div class="player-info"><strong>White Player</strong><small id="whiteState">To move</small></div>
-          <div class="player-clock" id="whiteClock">05:00</div>
-        </div>
-        <div class="control-group">
-          <div class="panel-heading">GAME</div>
-          <button id="undoBtn" class="control-button">↶ <span>Undo move</span></button>
-          <button id="flipBtn" class="control-button">⇅ <span>Flip board</span></button>
-          <button id="resetBtn" class="control-button">⟲ <span>Restart position</span></button>
-        </div>
-        <div class="move-panel">
-          <div class="panel-heading">MOVE HISTORY</div>
-          <div id="moveHistory" class="move-history"><span class="muted">No moves yet</span></div>
-        </div>
-      </aside>
-
-      <section class="board-column">
-        <div class="board-heading">
-          <div><span class="eyebrow">THE BATTLEFIELD</span><h1>Make your move.</h1></div>
-          <div class="turn-indicator"><span class="live-dot"></span><span id="turnText">White to move</span></div>
-        </div>
-        <div class="board-frame">
-          <div id="boardCanvas" class="board-canvas" aria-label="Interactive 3D chessboard"></div>
-          <div id="promotionDialog" class="promotion-dialog hidden">
-            <div class="promotion-card">
-              <strong>Choose promotion</strong>
-              <div class="promotion-options">
-                <button data-piece="q">Queen</button><button data-piece="r">Rook</button>
-                <button data-piece="b">Bishop</button><button data-piece="n">Knight</button>
-              </div>
             </div>
-          </div>
         </div>
-        <div class="board-toolbar">
-          <span class="drag-hint">⤢ Drag to rotate · Scroll to zoom</span>
-          <div class="view-actions">
-            <button id="topViewBtn" class="view-button active">Top view</button>
-            <button id="resetViewBtn" class="view-button">↺ Reset view</button>
-          </div>
-        </div>
-        <div class="status-bar"><span class="status-dot"></span><span id="statusText">The board is ready. White moves first.</span></div>
-      </section>
 
-      <aside class="side-panel right-panel">
-        <div class="panel-heading">BOARD VIEW</div>
-        <p class="panel-copy">Make the battlefield yours. Drag the board to explore every angle.</p>
-        <button id="whiteSideBtn" class="view-preset">♙ <span>White side</span></button>
-        <button id="blackSideBtn" class="view-preset">♟ <span>Black side</span></button>
-        <button id="sideViewBtn" class="view-preset">◫ <span>Side view</span></button>
-        <button id="topViewBtn2" class="view-preset selected">▦ <span>Default · 5° tilt</span></button>
-        <div class="divider"></div>
-        <div class="panel-heading">HOW TO PLAY</div>
-        <p class="panel-copy">Select a piece to see its legal moves, then select a highlighted square. This build is local practice for two players sharing one screen.</p>
-        <div class="mini-note">MULTIPLAYER COMING NEXT</div>
-      </aside>
+        <div class="landing-footer">
+            WAR ROOM <span>•</span> STRATEGY ABOVE EVERYTHING
+        </div>
+
+    </section>
+
+
+    <!-- SCREEN 2: MULTIPLAYER SETUP -->
+    <section id="multiplayerSetupScreen" class="screen setup-screen">
+
+        <div class="setup-heading">
+            <button id="backToLandingBtn" class="text-button">
+                ← BACK
+            </button>
+
+            <div class="setup-eyebrow">ONLINE PLAY</div>
+            <h1>Choose your battlefield.</h1>
+            <p>Create a new room or enter an existing one.</p>
+        </div>
+
+        <div class="setup-grid">
+
+            <!-- CREATE ROOM -->
+            <div class="setup-card">
+                <div class="setup-card-number">01 / CREATE</div>
+                <h2>Create a room</h2>
+                <p>
+                    Start a new match. You will automatically take
+                    the White pieces.
+                </p>
+
+                <label for="playerNameInput">YOUR PLAYER NAME</label>
+                <input id="playerNameInput" class="room-input" type="text" maxlength="24" placeholder="Enter your name"
+                    autocomplete="nickname">
+
+                <button id="createRoomBtn" class="primary-button">
+                    CREATE ROOM →
+                </button>
+            </div>
+
+
+            <!-- JOIN ROOM -->
+            <div class="setup-card">
+                <div class="setup-card-number">02 / JOIN</div>
+                <h2>Join a room</h2>
+                <p>
+                    Enter a room code and choose whether to play
+                    as Black or watch the match.
+                </p>
+
+                <label for="joinPlayerNameInput">YOUR PLAYER NAME</label>
+                <input id="joinPlayerNameInput" class="room-input" type="text" maxlength="24"
+                    placeholder="Enter your name" autocomplete="nickname">
+
+                <label for="roomCodeInput">ROOM CODE</label>
+                <input id="roomCodeInput" class="room-input room-code-input" type="text" maxlength="12"
+                    placeholder="ENTER ROOM CODE" autocomplete="off">
+
+                <label for="roleSelect">JOIN AS</label>
+                <select id="roleSelect" class="room-select">
+                    <option value="player">Black — Play</option>
+                    <option value="spectator">Spectator — Watch</option>
+                </select>
+
+                <button id="joinRoomBtn" class="primary-button">
+                    JOIN ROOM →
+                </button>
+
+                <button id="watchRoomBtn" class="secondary-button" hidden>
+                    WATCH ROOM
+                </button>
+            </div>
+
+        </div>
+
+        <div class="network-message">
+            <span class="status-indicator"></span>
+            <span id="networkStatus">Waiting for connection...</span>
+            <div id="connectionInfo"></div>
+        </div>
+
+        <button id="leaveRoomBtn" class="text-button" hidden>
+            LEAVE ROOM
+        </button>
+
+    </section>
+
+
+    <!-- SCREEN 3: CHESS ARENA -->
+    <main id="arenaScreen" class="screen arena-screen">
+
+        <div class="arena-topline">
+
+            <div>
+                <div class="arena-eyebrow">LIVE MATCH</div>
+                <h1>THE BATTLEFIELD</h1>
+            </div>
+
+            <button id="lastMoveButton" class="last-move">
+                <span class="last-move-label">LAST MOVE</span>
+                <span id="lastMoveText">No moves played yet</span>
+                <span class="last-move-hint">VIEW HISTORY ↗</span>
+            </button>
+
+        </div>
+
+
+        <div class="arena-layout">
+
+            <!-- LEFT: CHESS BOARD -->
+            <section class="board-column">
+
+                <div class="board-frame">
+                    <div id="boardCanvas" class="board-canvas"></div>
+
+                    <div id="promotionDialog" class="promotion-dialog" hidden>
+                        <div class="promotion-content">
+                            <h3>Choose promotion</h3>
+                            <div class="promotion-options">
+                                <button data-piece="q">♛</button>
+                                <button data-piece="r">♜</button>
+                                <button data-piece="b">♝</button>
+                                <button data-piece="n">♞</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-bar">
+                    <span id="turnText">White's turn</span>
+                    <span id="statusText">Ready to play</span>
+                </div>
+
+            </section>
+
+
+            <!-- RIGHT: GAME SIDEBAR -->
+            <aside class="arena-sidebar">
+
+                <!-- PLAYERS AND CLOCKS -->
+                <section class="side-panel">
+                    <div class="panel-heading">
+                        <span>MATCH</span>
+                        <span class="panel-heading-line"></span>
+                    </div>
+
+                    <div class="player-card black-player" id="blackPlayerCard">
+                        <div class="player-info">
+                            <span class="piece-indicator black-piece">♚</span>
+                            <div>
+                                <strong id="blackPlayer">Black</strong>
+                                <small id="blackState">Waiting</small>
+                            </div>
+                        </div>
+                        <div id="blackClock" class="player-clock">05:00</div>
+                    </div>
+
+                    <div class="player-card white-player" id="whitePlayerCard">
+                        <div class="player-info">
+                            <span class="piece-indicator white-piece">♔</span>
+                            <div>
+                                <strong id="whitePlayer">White</strong>
+                                <small id="whiteState">Your turn</small>
+                            </div>
+                        </div>
+                        <div id="whiteClock" class="player-clock">05:00</div>
+                    </div>
+
+                    <div class="match-controls">
+                        <button id="undoBtn" class="secondary-button">
+                            Undo
+                        </button>
+                        <button id="flipBtn" class="secondary-button">
+                            Flip Board
+                        </button>
+                        <button id="resetBtn" class="secondary-button">
+                            Reset
+                        </button>
+                    </div>
+                </section>
+
+
+                <!-- MESSAGES AND REACTIONS -->
+                <section class="side-panel message-area">
+                    <div class="panel-heading">
+                        <span>WAR ROOM CHAT</span>
+                        <span class="panel-heading-line"></span>
+                    </div>
+
+                    <div id="roomMessages" class="room-messages">
+                        <p class="empty-message">
+                            The room is quiet. Make your move.
+                        </p>
+                    </div>
+
+                    <div class="reaction-list">
+                        <button class="reaction-button" data-reaction="👍">👍</button>
+                        <button class="reaction-button" data-reaction="👏">👏</button>
+                        <button class="reaction-button" data-reaction="🔥">🔥</button>
+                        <button class="reaction-button" data-reaction="😂">😂</button>
+                        <button class="reaction-button" data-reaction="😮">😮</button>
+                    </div>
+                </section>
+
+
+                <!-- CAMERA / BOARD VIEW -->
+                <section class="side-panel">
+                    <div class="panel-heading">
+                        <span>BOARD VIEW</span>
+                        <span class="panel-heading-line"></span>
+                    </div>
+
+                    <div class="view-controls">
+                        <button id="whiteSideBtn" class="view-preset">White</button>
+                        <button id="blackSideBtn" class="view-preset">Black</button>
+                        <button id="sideViewBtn" class="view-preset">Side</button>
+                        <button id="topViewBtn2" class="view-preset">Top</button>
+                        <button id="topViewBtn" class="view-preset">Reset</button>
+                        <button id="resetViewBtn" class="view-preset">Reset Camera</button>
+                    </div>
+                </section>
+
+
+                <!-- ROOM DETAILS -->
+                <section class="side-panel room-details">
+                    <div class="panel-heading">
+                        <span>ROOM DETAILS</span>
+                        <span class="panel-heading-line"></span>
+                    </div>
+
+                    <div class="detail-row">
+                        <span>Room</span>
+                        <strong id="roomDetailCode">Offline</strong>
+                    </div>
+
+                    <div class="detail-row">
+                        <span>Players</span>
+                        <strong id="roomDetailPlayers">2</strong>
+                    </div>
+
+                    <div class="detail-row">
+                        <span>Spectators</span>
+                        <strong id="roomDetailSpectators">0</strong>
+                    </div>
+
+                    <div id="arenaNetworkStatus" class="arena-network-status">
+                        Local game
+                    </div>
+
+                </section>
+
+            </aside>
+
+        </div>
+
+
+        <!-- MOVE HISTORY OVERLAY -->
+        <div id="moveHistoryPanel" class="history-overlay" hidden>
+            <div class="history-card">
+                <div class="history-heading">
+                    <div>
+                        <span class="arena-eyebrow">MATCH RECORD</span>
+                        <h2>Move History</h2>
+                    </div>
+
+                    <button id="closeMoveHistoryBtn" class="text-button">
+                        CLOSE ✕
+                    </button>
+                </div>
+
+                <div id="moveHistory" class="move-history">
+                    <p>No moves played yet.</p>
+                </div>
+            </div>
+        </div>
+
     </main>
-    <footer><span>WAR ROOM © 2026</span><span>THINK. PLAN. STRIKE.</span><span>3D CHESS EXPERIENCE</span></footer>
-  </div>
-  <script type="module" src="./js/main.js"></script>
+
+
+    <footer class="site-footer">
+        <span>WAR ROOM</span>
+        <span>IT'S CHESS.</span>
+    </footer>
+
+
+    <script type="module" src="./js/main.js"></script>
+
 </body>
+
 </html>

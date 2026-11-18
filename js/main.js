@@ -162,6 +162,62 @@ function drawHighlights(){
 }
 const game=new Chess();
 
+// ==========================================
+// WAR ROOM SCREEN NAVIGATION
+// ==========================================
+
+const landingScreen = document.querySelector('#landingScreen');
+const setupScreen = document.querySelector('#multiplayerSetupScreen');
+const arenaScreen = document.querySelector('#arenaScreen');
+
+function showScreen(screen) {
+  document.querySelectorAll('.screen').forEach(element => {
+    element.classList.remove('active');
+  });
+
+  screen.classList.add('active');
+
+  const inArena = screen === arenaScreen;
+
+  document.querySelector('#newGameBtn').hidden = !inArena;
+  document.querySelector('#headerRoomTag').hidden = !inArena;
+
+  // Recalculate the Three.js canvas dimensions after it becomes visible.
+  if (inArena) {
+    requestAnimationFrame(() => {
+      resize();
+      renderer.render(scene, camera);
+    });
+  }
+}
+
+document.querySelector('#offlineBtn').addEventListener('click', () => {
+  leaveOnlineRoom();
+  showScreen(arenaScreen);
+
+  document.querySelector('#arenaNetworkStatus').textContent =
+    'Offline practice';
+
+  document.querySelector('#roomDetailCode').textContent = 'Offline';
+  document.querySelector('#roomDetailPlayers').textContent = '2';
+  document.querySelector('#roomDetailSpectators').textContent = '0';
+});
+
+document.querySelector('#multiplayerBtn').addEventListener('click', () => {
+  showScreen(setupScreen);
+});
+
+document.querySelector('#backToLandingBtn').addEventListener('click', () => {
+  showScreen(landingScreen);
+});
+
+document.querySelector('#lastMoveButton').addEventListener('click', () => {
+  document.querySelector('#moveHistoryPanel').hidden = false;
+});
+
+document.querySelector('#closeMoveHistoryBtn').addEventListener('click', () => {
+  document.querySelector('#moveHistoryPanel').hidden = true;
+});
 
 // ==========================================
 // WAR ROOM MULTIPLAYER CONNECTION
@@ -197,11 +253,27 @@ function setOnlineControls() {
   });
 }
 
+// function getPlayerName() {
+//   const joining = document.querySelector('#joinPlayerNameInput');
+//   const creating = document.querySelector('#playerNameInput');
+
+//   const name = currentRoomCode && joining?.value.trim()
+//     ? joining.value.trim()
+//     : creating?.value.trim();
+
+//   return name || 'WAR ROOM Player';
+// }
+
 function getPlayerName() {
-  return (
-    document.querySelector('#playerNameInput').value.trim() ||
-    'WAR ROOM Player'
-  );
+  const joiningName = localStorage.getItem('warroom-joining-name');
+  const creatingName = document.querySelector('#playerNameInput')?.value.trim();
+
+  if (joiningName) {
+    localStorage.removeItem('warroom-joining-name');
+    return joiningName;
+  }
+
+  return creatingName || 'WAR ROOM Player';
 }
 
 function getRoomCode() {
@@ -246,9 +318,17 @@ function joinOnlineRoom() {
     return;
   }
 
-  connectToRoom(code, 'player');
-}
+  const role = document.querySelector('#roleSelect').value;
 
+  // Use the joining player's name.
+  const joiningName = document.querySelector('#joinPlayerNameInput').value.trim();
+
+  if (joiningName) {
+    localStorage.setItem('warroom-joining-name', joiningName);
+  }
+
+  connectToRoom(code, role);
+}
 
 function watchOnlineRoom() {
   const code = getRoomCode();
@@ -275,8 +355,8 @@ function connectToRoom(code, role) {
   remoteHistory = null;
 
   // document.querySelector('#leaveRoomBtn').disabled = false;
-  document.querySelector('#leaveRoomBtn')
-  .addEventListener('click', leaveOnlineRoom);
+  // document.querySelector('#leaveRoomBtn')
+  // .addEventListener('click', leaveOnlineRoom);
 
   // Online clocks must not run as independent local clocks.
   stopClock();
@@ -380,6 +460,13 @@ function handleRoomMessage(message) {
 
     setNetworkStatus(`${roleLabel} · Room ${currentRoomCode}`);
 
+    showScreen(arenaScreen);
+
+document.querySelector('#headerRoomCode').textContent = currentRoomCode;
+document.querySelector('#roomDetailCode').textContent = currentRoomCode;
+
+document.querySelector('#arenaNetworkStatus').textContent = roleLabel;
+
     connectionInfo.textContent =
       spectatorMode
         ? 'You are watching this match.'
@@ -429,6 +516,22 @@ function applyRemoteState(state) {
       black?.connected ? 'Connected' : 'Disconnected';
 
     refresh();
+
+    const playerCount =
+  Number(Boolean(state.players?.white)) +
+  Number(Boolean(state.players?.black));
+
+document.querySelector('#roomDetailPlayers').textContent = playerCount;
+
+document.querySelector('#roomDetailSpectators').textContent =
+  state.spectatorCount ?? state.spectators?.length ?? '—';
+
+document.querySelector('#arenaNetworkStatus').textContent =
+  state.status === 'waiting'
+    ? 'Waiting for opponent'
+    : state.status === 'playing'
+      ? 'Match in progress'
+      : 'Match finished';
 
     if (state.status === 'waiting') {
       setNetworkStatus('Waiting for another player...');
@@ -577,6 +680,12 @@ function switchClock() {
 
   activeClock = game.turn();
   lastClockUpdate = Date.now();
+
+  // Start the clock only after the first move.
+  if (!clockTimer) {
+    clockTimer = setInterval(clockTick, 100);
+  }
+
   renderClocks();
 }
 
@@ -586,13 +695,13 @@ function resetClocks() {
   remainingTime.w = INITIAL_TIME;
   remainingTime.b = INITIAL_TIME;
 
-  activeClock = 'w';
+  // Both clocks remain stopped until White makes the first move.
+  activeClock = null;
+
   gameFlagged = false;
   lastClockUpdate = Date.now();
 
   renderClocks();
-
-  clockTimer = setInterval(clockTick, 100);
 }
 
 
@@ -605,6 +714,16 @@ function updateStatus(){
   else if(game.isDraw())text='Draw.';
   else text=`${game.turn()==='w'?'White':'Black'} to move${game.isCheck()?' · Check':''}.`;
   document.querySelector('#statusText').textContent=text;
+  const historyForBanner = remoteHistory !== null
+  ? remoteHistory
+  : game.history();
+
+const lastMove = historyForBanner.length
+  ? historyForBanner[historyForBanner.length - 1]
+  : null;
+
+document.querySelector('#lastMoveText').textContent =
+  lastMove || 'No moves played yet';
   document.querySelector('#turnText').textContent=game.isGameOver()?'Game finished':`${game.turn()==='w'?'White':'Black'} to move`;
   document.querySelector('#whitePlayer').classList.toggle('active-player',game.turn()==='w'&&!game.isGameOver());
   document.querySelector('#blackPlayer').classList.toggle('active-player',game.turn()==='b'&&!game.isGameOver());
@@ -796,7 +915,52 @@ new ResizeObserver(resize).observe(mount);resize();
 function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);}
 
 // ==========================================
+// WAR ROOM REACTIONS
+// ==========================================
+
+document.querySelectorAll('.reaction-button').forEach(button => {
+  button.addEventListener('click', () => {
+    const reaction = button.dataset.reaction;
+
+    const messageArea = document.querySelector('#roomMessages');
+    const message = document.createElement('div');
+
+    message.className = 'reaction-message';
+    message.textContent = reaction;
+
+    messageArea.appendChild(message);
+  });
+});
+
+// ==========================================
 // LOBBY EVENT LISTENERS
+// ==========================================
+
+// document.querySelector('#createRoomBtn')
+//   .addEventListener('click', createOnlineRoom);
+
+// document.querySelector('#joinRoomBtn')
+//   .addEventListener('click', joinOnlineRoom);
+
+// document.querySelector('#watchRoomBtn')
+//   .addEventListener('click', watchOnlineRoom);
+
+//   document.querySelector('#leaveRoomBtn')
+//   .addEventListener('click', leaveOnlineRoom);
+
+// document.querySelector('#roomCodeInput')
+//   .addEventListener('input', event => {
+//     event.target.value = event.target.value
+//       .toUpperCase()
+//       .replace(/[^A-Z0-9]/g, '');
+//   });
+
+// resetClocks();
+// refresh();
+// animate();
+
+// ==========================================
+// WAR ROOM EVENT LISTENERS
 // ==========================================
 
 document.querySelector('#createRoomBtn')
@@ -805,11 +969,11 @@ document.querySelector('#createRoomBtn')
 document.querySelector('#joinRoomBtn')
   .addEventListener('click', joinOnlineRoom);
 
-document.querySelector('#watchRoomBtn')
-  .addEventListener('click', watchOnlineRoom);
-
-  document.querySelector('#leaveRoomBtn')
-  .addEventListener('click', leaveOnlineRoom);
+document.querySelector('#leaveRoomBtn')
+  .addEventListener('click', () => {
+    leaveOnlineRoom();
+    showScreen(setupScreen);
+  });
 
 document.querySelector('#roomCodeInput')
   .addEventListener('input', event => {
@@ -818,6 +982,9 @@ document.querySelector('#roomCodeInput')
       .replace(/[^A-Z0-9]/g, '');
   });
 
+// Initial screen and chess state.
 resetClocks();
 refresh();
 animate();
+
+showScreen(landingScreen);
