@@ -1,5 +1,12 @@
+ /* =========================================================== 
+    WAR ROOM UNIVERSAL STYLESHEET
+    =========================================================== 
+*/
+
 
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+/* UNIVERSAL: DESIGN TOKENS, RESET, AND BASE ELEMENTS */
 
 :root {
   --bg: #090a0d;
@@ -46,7 +53,7 @@ button:disabled {
   padding: 0 34px;
 }
 
-/* HEADER */
+/* UNIVERSAL: HEADER */
 
 .topbar {
   height: 82px;
@@ -69,6 +76,18 @@ button:disabled {
   color: var(--gold);
   line-height: 1;
   text-shadow: 0 0 20px #b17b2e66;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+
+}
+
+.logo img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50px;
 }
 
 .brand strong {
@@ -118,7 +137,7 @@ button:disabled {
   box-shadow: 0 0 10px #68c98788;
 }
 
-/* BUTTONS */
+/* UNIVERSAL: BUTTONS AND CONTROLS */
 
 .gold-button {
   padding: 12px 21px;
@@ -161,7 +180,7 @@ button:disabled {
   font-size: 12px;
 }
 
-/* SHARED PANELS */
+/* UNIVERSAL: SHARED PANELS */
 
 .panel-heading {
   margin-bottom: 15px;
@@ -184,7 +203,7 @@ button:disabled {
   background: #ffffff12;
 }
 
-/* SCREEN MANAGEMENT */
+/* UNIVERSAL: SCREEN MANAGEMENT */
 
 .screen {
   display: none;
@@ -196,204 +215,7 @@ button:disabled {
   display: block;
 }
 
-/* LANDING SCREEN */
-
-.landing-screen {
-  display: none;
-  align-items: center;
-  justify-content: center;
-}
-
-.landing-screen.active {
-  display: flex;
-}
-
-.landing-content {
-  width: 100%;
-  max-width: 1050px;
-  margin: auto;
-  text-align: center;
-}
-
-.landing-emblem {
-  margin-bottom: 15px;
-  color: var(--gold);
-  font-size: 72px;
-  text-shadow: 0 0 35px #d7a84d55;
-}
-
-.landing-title {
-  margin: 0;
-  font: 800 clamp(55px, 9vw, 100px) 'Barlow Condensed', sans-serif;
-  letter-spacing: 9px;
-}
-
-.landing-tagline {
-  margin: 5px 0 45px;
-  color: var(--gold);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 8px;
-}
-
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 18px;
-}
-
-.mode-card {
-  min-height: 220px;
-  padding: 30px 23px;
-  text-align: left;
-  color: var(--text);
-  background: linear-gradient(155deg, #1a1b20, #101115);
-  border: 1px solid #ffffff15;
-  border-radius: 12px;
-  transition: .25s ease;
-}
-
-.mode-card:not(:disabled):hover {
-  transform: translateY(-5px);
-  border-color: var(--gold);
-  box-shadow: 0 15px 45px #0007;
-}
-
-.mode-card:disabled {
-  opacity: .55;
-}
-
-.mode-icon {
-  display: block;
-  margin-bottom: 23px;
-  color: var(--gold);
-  font-size: 36px;
-}
-
-.mode-card h2 {
-  margin: 0 0 9px;
-  font: 700 26px 'Barlow Condensed', sans-serif;
-  letter-spacing: 1px;
-}
-
-.mode-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.7;
-}
-
-.mode-label {
-  display: inline-block;
-  margin-top: 17px;
-  color: var(--gold2);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-}
-
-/* MULTIPLAYER SETUP */
-
-.setup-screen {
-  max-width: 850px;
-  margin: auto;
-}
-
-.setup-heading {
-  margin-bottom: 30px;
-  text-align: center;
-}
-
-.eyebrow {
-  color: var(--gold);
-  font-size: 9px;
-  letter-spacing: 2.2px;
-}
-
-.setup-heading h1 {
-  margin: 7px 0;
-  font: 700 42px 'Barlow Condensed', sans-serif;
-}
-
-.setup-heading p {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.setup-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 18px;
-}
-
-.setup-card {
-  padding: 24px;
-  background: linear-gradient(155deg, #191b21, #101115);
-  border: 1px solid #ffffff12;
-  border-radius: 11px;
-}
-
-.setup-card h2 {
-  margin: 0 0 8px;
-  font: 700 24px 'Barlow Condensed', sans-serif;
-}
-
-.setup-card > p {
-  margin: 0 0 20px;
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.6;
-}
-
-.field-label {
-  display: block;
-  margin: 13px 0 7px;
-  color: #c9c4b9;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.room-input,
-.room-select {
-  width: 100%;
-  padding: 12px 13px;
-  color: var(--text);
-  background: #090a0d;
-  border: 1px solid #39332a;
-  border-radius: 6px;
-  outline: none;
-}
-
-.room-input:focus,
-.room-select:focus {
-  border-color: var(--gold);
-}
-
-.room-select option {
-  background: #111318;
-}
-
-.setup-card .gold-button,
-.setup-card .control-button {
-  margin-top: 16px;
-}
-
-.setup-actions {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 25px;
-}
-
-.network-message {
-  min-height: 20px;
-  margin-top: 16px;
-  color: var(--gold2);
-  font-size: 11px;
-  text-align: center;
-}
-
-/* CHESS ARENA */
+/* UNIVERSAL: SHARED GAME UI */
 
 .arena-screen {
   padding-top: 22px;
@@ -513,7 +335,18 @@ button:disabled {
   font-size: 11px;
 }
 
-/* ARENA SIDEBAR */
+/* UNIVERSAL: MATCH SIDEBAR */
+
+.match-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.match-controls button {
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+}
 
 .arena-sidebar {
   display: flex;
@@ -602,7 +435,7 @@ button:disabled {
   to { opacity: .55; }
 }
 
-/* MESSAGES AND REACTIONS */
+/* UNIVERSAL: MESSAGES AND REACTIONS */
 
 .message-area {
   min-height: 75px;
@@ -638,7 +471,7 @@ button:disabled {
   border-color: var(--gold);
 }
 
-/* ROOM INFORMATION AND CAMERA */
+/* UNIVERSAL: ROOM INFORMATION AND CAMERA */
 
 .view-preset {
   display: flex;
@@ -676,7 +509,7 @@ button:disabled {
   text-align: right;
 }
 
-/* MOVE HISTORY */
+/* UNIVERSAL: MOVE HISTORY */
 
 .move-history {
   display: grid;
@@ -704,7 +537,7 @@ button:disabled {
   color: var(--muted);
 }
 
-/* STATUS */
+/* UNIVERSAL: STATUS */
 
 .status-bar {
   display: flex;
@@ -726,7 +559,7 @@ button:disabled {
   background: var(--gold);
 }
 
-/* PROMOTION */
+/* UNIVERSAL: PROMOTION */
 
 .promotion-dialog {
   position: absolute;
@@ -769,7 +602,65 @@ button:disabled {
   font-size: 11px;
 }
 
-/* FOOTER */
+/* UNIVERSAL: SHARED MATCH ACTION OVERLAYS */
+
+.match-action-overlay {
+  position: fixed;
+  z-index: 20;
+  inset: 82px 0 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 24px;
+  background: #090a0df2;
+  backdrop-filter: blur(7px);
+}
+
+.match-action-card {
+  width: min(540px, 100%);
+  padding: 30px;
+  background: linear-gradient(150deg, #1a1b20, #101115);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 24px 80px #000a;
+  text-align: center;
+}
+
+.match-action-card h2 {
+  margin: 8px 0 10px;
+  font: 700 30px 'Barlow Condensed', sans-serif;
+}
+
+.match-action-card p {
+  color: #c9c4b9;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.match-action-status {
+  color: var(--gold2) !important;
+}
+
+.match-action-card .gold-button,
+.match-action-buttons .control-button {
+  min-width: 180px;
+  padding: 12px 16px;
+  text-align: center;
+}
+
+.match-action-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* UNIVERSAL: FOOTER */
+
+footer {
+  font-size: 11px;
+}
 
 footer {
   display: flex;
@@ -781,7 +672,7 @@ footer {
   letter-spacing: 1.5px;
 }
 
-/* RESPONSIVE */
+/* UNIVERSAL: RESPONSIVE RULES */
 
 @media (max-width: 1050px) {
   .arena-layout {
@@ -799,6 +690,10 @@ footer {
 }
 
 @media (max-width: 760px) {
+  .match-action-overlay {
+    top: 70px;
+  }
+
   .app-shell {
     padding: 0 13px;
   }
@@ -822,23 +717,6 @@ footer {
   .screen {
     min-height: calc(100vh - 130px);
     padding: 25px 0;
-  }
-
-  .mode-grid,
-  .setup-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .mode-card {
-    min-height: 150px;
-  }
-
-  .landing-title {
-    letter-spacing: 5px;
-  }
-
-  .landing-tagline {
-    margin-bottom: 28px;
   }
 
   .arena-topline {
@@ -886,10 +764,6 @@ footer {
 }
 
 @media (max-width: 420px) {
-  .setup-actions {
-    flex-direction: column;
-  }
-
   .view-actions {
     flex-wrap: wrap;
   }
@@ -900,5 +774,247 @@ footer {
 }
 
 [hidden] {
-    display: none !important;
+  display: none !important;
 }
+
+/* UNIVERSAL: INDEX LANDING SCREEN AND MODE SELECTOR */
+
+.landing-screen {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-screen.active {
+  display: flex;
+}
+
+.landing-content {
+  width: 100%;
+  max-width: 1050px;
+  margin: auto;
+  text-align: center;
+}
+
+.landing-emblem {
+  margin-bottom: 15px;
+  color: var(--gold);
+  font-size: 72px;
+  text-shadow: 0 0 35px #d7a84d55;
+}
+
+.landing-title {
+  margin: 0;
+  font: 800 clamp(55px, 9vw, 100px) 'Barlow Condensed', sans-serif;
+  letter-spacing: 9px;
+}
+
+.landing-tagline {
+  margin: 5px 0 45px;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 8px;
+}
+
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.mode-card {
+  display: block;
+  min-height: 220px;
+  padding: 30px 23px;
+  text-align: left;
+  color: var(--text);
+  text-decoration: none;
+  background: linear-gradient(155deg, #1a1b20, #101115);
+  border: 1px solid #ffffff15;
+  border-radius: 12px;
+  transition: .25s ease;
+}
+
+.mode-card:not(:disabled):hover {
+  transform: translateY(-5px);
+  border-color: var(--gold);
+  box-shadow: 0 15px 45px #0007;
+}
+
+.mode-card:disabled {
+  opacity: .55;
+}
+
+.mode-icon {
+  display: block;
+  margin-bottom: 23px;
+  color: var(--gold);
+  font-size: 36px;
+}
+
+.mode-card h2 {
+  margin: 0 0 9px;
+  font: 700 26px 'Barlow Condensed', sans-serif;
+  letter-spacing: 1px;
+}
+
+.mode-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.mode-label {
+  display: inline-block;
+  margin-top: 17px;
+  color: var(--gold2);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+/* INDEX PAGE: RESPONSIVE RULES */
+
+@media (max-width: 760px) {
+  .mode-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mode-card {
+    min-height: 150px;
+  }
+
+  .landing-title {
+    letter-spacing: 5px;
+  }
+
+  .landing-tagline {
+    margin-bottom: 28px;
+  }
+}
+
+ /* =========================================================== 
+    WAR ROOM MULTIPLAYER PAGE STYLESHEET
+    =========================================================== 
+*/
+
+.setup-screen {
+  max-width: 850px;
+  margin: auto;
+}
+
+.setup-heading {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.eyebrow {
+  color: var(--gold);
+  font-size: 9px;
+  letter-spacing: 2.2px;
+}
+
+.setup-heading h1 {
+  margin: 7px 0;
+  font: 700 42px 'Barlow Condensed', sans-serif;
+}
+
+.setup-heading p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+
+.setup-card {
+  padding: 24px;
+  background: linear-gradient(155deg, #191b21, #101115);
+  border: 1px solid #ffffff12;
+  border-radius: 11px;
+}
+
+.setup-card h2 {
+  margin: 0 0 8px;
+  font: 700 24px 'Barlow Condensed', sans-serif;
+}
+
+.setup-card > p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.field-label {
+  display: block;
+  margin: 13px 0 7px;
+  color: #c9c4b9;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.room-input,
+.room-select {
+  width: 100%;
+  padding: 12px 13px;
+  color: var(--text);
+  background: #090a0d;
+  border: 1px solid #39332a;
+  border-radius: 6px;
+  outline: none;
+}
+
+.room-input:focus,
+.room-select:focus {
+  border-color: var(--gold);
+}
+
+.room-select option {
+  background: #111318;
+}
+
+.setup-card .gold-button,
+.setup-card .control-button {
+  margin-top: 16px;
+}
+
+.setup-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 25px;
+}
+
+.network-message {
+  min-height: 20px;
+  margin-top: 16px;
+  color: var(--gold2);
+  font-size: 11px;
+  text-align: center;
+}
+
+/* MULTIPLAYER PAGE: RESPONSIVE RULES */
+
+@media (max-width: 760px) {
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 420px) {
+  .setup-actions {
+    flex-direction: column;
+  }
+}
+
+/* OFFLINE PAGE: NO PAGE-ONLY STYLES */
+/* Uses the universal game UI above. */
+
+/* SINGLEPLAYER PAGE: NO PAGE-ONLY STYLES */
+/* Uses the universal game UI above. */

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#080a0d">
+    <title>Offline — WAR ROOM</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+            "chess.js": "https://cdn.jsdelivr.net/npm/chess.js@1.4.0/dist/esm/chess.js"
+        }
+    }
+    </script>
+</head>
+<body data-mode="offline">
+    <div class="app-shell">
+        <header class="topbar">
+            <a class="brand" href="../" aria-label="WAR ROOM home">
+                <span class="logo">
+                    <img src="../assets/golden-trojan-horse.png" alt="WAR ROOM Logo" width="40" height="40">
+                </span>
+                <div>
+                    <div class="brand-name">WAR ROOM</div>
+                    <div class="brand-subtitle">IT'S CHESS.</div>
+                </div>
+            </a>
+            <div class="header-actions">
+                <span class="room-tag" id="headerRoomTag" hidden>ROOM <strong id="headerRoomCode">------</strong></span>
+                <button id="newGameBtn" class="secondary-button" hidden>New Game</button>
+            </div>
+        </header>
+        <div id="gameApp" aria-live="polite">Loading game…</div>
+        <footer class="site-footer"><span>WAR ROOM</span><span>IT'S CHESS.</span></footer>
+    </div>
+    <script type="module" src="../js/page.js"></script>
+</body>
+</html>

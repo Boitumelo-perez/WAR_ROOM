@@ -25,10 +25,12 @@ controls.maxDistance = 23;
 controls.minPolarAngle = 0.02;
 controls.maxPolarAngle = Math.PI * 0.48;
 controls.rotateSpeed = 0.65;
-const DEFAULT_CAMERA = new THREE.Vector3(0, 18, 6.823); // 5 degrees from vertical
+const DEFAULT_CAMERA = new THREE.Vector3(0, 18, 6.823);
+const BLACK_DEFAULT_CAMERA = new THREE.Vector3(0, 18, -6.823);
+let defaultCamera = DEFAULT_CAMERA;
 const TARGET = new THREE.Vector3(0, 0, 0);
 
-function resetCamera(position = DEFAULT_CAMERA) {
+function resetCamera(position = defaultCamera) {
   camera.position.copy(position);
   controls.target.copy(TARGET);
   controls.update();
@@ -166,9 +168,11 @@ const game=new Chess();
 // WAR ROOM SCREEN NAVIGATION
 // ==========================================
 
-const landingScreen = document.querySelector('#landingScreen');
 const setupScreen = document.querySelector('#multiplayerSetupScreen');
 const arenaScreen = document.querySelector('#arenaScreen');
+const gameMode = document.body.dataset.mode;
+const isSingleplayer = gameMode === 'singleplayer';
+let computerMoveTimer = null;
 
 function showScreen(screen) {
   document.querySelectorAll('.screen').forEach(element => {
@@ -191,26 +195,6 @@ function showScreen(screen) {
   }
 }
 
-document.querySelector('#offlineBtn').addEventListener('click', () => {
-  leaveOnlineRoom();
-  showScreen(arenaScreen);
-
-  document.querySelector('#arenaNetworkStatus').textContent =
-    'Offline practice';
-
-  document.querySelector('#roomDetailCode').textContent = 'Offline';
-  document.querySelector('#roomDetailPlayers').textContent = '2';
-  document.querySelector('#roomDetailSpectators').textContent = '0';
-});
-
-document.querySelector('#multiplayerBtn').addEventListener('click', () => {
-  showScreen(setupScreen);
-});
-
-document.querySelector('#backToLandingBtn').addEventListener('click', () => {
-  showScreen(landingScreen);
-});
-
 document.querySelector('#lastMoveButton').addEventListener('click', () => {
   document.querySelector('#moveHistoryPanel').hidden = false;
 });
@@ -231,6 +215,8 @@ let spectatorMode = false;
 let mySide = null;
 let myToken = null;
 let remoteHistory = null;
+let remotePlayers = { white: null, black: null };
+let remoteRoomState = null;
 let currentRoomCode = null;
 
 const networkStatus = document.querySelector('#networkStatus');
@@ -241,16 +227,51 @@ function setNetworkStatus(message) {
 }
 
 function setOnlineControls() {
-  const localOnlyButtons = [
-    '#undoBtn',
-    '#resetBtn',
-    '#newGameBtn'
-  ];
+  const newGameButton = document.querySelector('#newGameBtn');
+  if (newGameButton) newGameButton.disabled = onlineMode;
 
-  localOnlyButtons.forEach(selector => {
-    const button = document.querySelector(selector);
-    if (button) button.disabled = onlineMode;
-  });
+  const undoButton = document.querySelector('#undoBtn');
+  const resetButton = document.querySelector('#resetBtn');
+  const pauseButton = document.querySelector('#pauseBtn');
+
+  if (!onlineMode) {
+    if (undoButton) undoButton.disabled = false;
+    if (resetButton) resetButton.disabled = false;
+    if (pauseButton) {
+      pauseButton.hidden = true;
+      pauseButton.disabled = true;
+    }
+    return;
+  }
+
+  const state = remoteRoomState;
+  if (undoButton) {
+    undoButton.disabled =
+      spectatorMode ||
+      !state ||
+      state.paused ||
+      state.resetRequest ||
+      state.undoAvailableTo !== mySide;
+  }
+
+  if (resetButton) {
+    resetButton.disabled =
+      spectatorMode ||
+      !state ||
+      state.paused ||
+      !['playing', 'finished'].includes(state.status) ||
+      Boolean(state.resetRequest);
+  }
+
+  if (pauseButton) {
+    pauseButton.hidden = false;
+    pauseButton.disabled =
+      spectatorMode ||
+      !state ||
+      state.paused ||
+      state.status !== 'playing' ||
+      Boolean(state.resetRequest);
+  }
 }
 
 // function getPlayerName() {
@@ -330,6 +351,29 @@ function joinOnlineRoom() {
   connectToRoom(code, role);
 }
 
+function getSavedPlayerToken(code, role) {
+  const roomTokenKey = `warroom-token-${code}`;
+
+  if (role === 'white' || role === 'black') {
+    const sideToken = localStorage.getItem(`${roomTokenKey}-${role}`);
+    if (sideToken) return sideToken;
+
+    return localStorage.getItem(`warroom-side-${code}`) === role
+      ? localStorage.getItem(roomTokenKey)
+      : null;
+  }
+
+  if (role === 'rejoin') {
+    const savedSide = localStorage.getItem(`warroom-side-${code}`);
+    const sideToken = savedSide
+      ? localStorage.getItem(`${roomTokenKey}-${savedSide}`)
+      : null;
+    return sideToken || localStorage.getItem(roomTokenKey);
+  }
+
+  return role === 'player' ? localStorage.getItem(roomTokenKey) : null;
+}
+
 function watchOnlineRoom() {
   const code = getRoomCode();
 
@@ -353,6 +397,8 @@ function connectToRoom(code, role) {
   spectatorMode = role === 'spectator';
   mySide = null;
   remoteHistory = null;
+  remotePlayers = { white: null, black: null };
+  remoteRoomState = null;
 
   // document.querySelector('#leaveRoomBtn').disabled = false;
   // document.querySelector('#leaveRoomBtn')
@@ -370,9 +416,7 @@ function connectToRoom(code, role) {
   });
 
   // Only attempt player-seat recovery for a previous player session.
-  const savedToken = role === 'player'
-    ? localStorage.getItem(`warroom-token-${code}`)
-    : null;
+  const savedToken = getSavedPlayerToken(code, role);
 
   if (savedToken) {
     params.set('token', savedToken);
@@ -381,26 +425,49 @@ function connectToRoom(code, role) {
   const socketUrl =
     `ws://localhost:8787/api/rooms/${encodeURIComponent(code)}/connect?${params}`;
 
-  roomSocket = new WebSocket(socketUrl);
+  const socket = new WebSocket(socketUrl);
+  roomSocket = socket;
+  let joinErrorMessage = null;
 
-  roomSocket.addEventListener('open', () => {
+  socket.addEventListener('open', () => {
     setNetworkStatus('Connected. Waiting for room information...');
   });
 
-  roomSocket.addEventListener('message', event => {
+  socket.addEventListener('message', event => {
     try {
       const message = JSON.parse(event.data);
+
+      if (message.type === 'join-error') {
+        joinErrorMessage = message.message;
+        onlineMode = false;
+        spectatorMode = false;
+        mySide = null;
+        currentRoomCode = null;
+        connectionInfo.textContent = '';
+        document.querySelector('#leaveRoomBtn').disabled = true;
+        setOnlineControls();
+        setNetworkStatus(joinErrorMessage);
+        socket.close();
+        return;
+      }
+
       handleRoomMessage(message);
     } catch (error) {
       console.error('Invalid server message:', error);
     }
   });
 
-  roomSocket.addEventListener('close', () => {
-    setNetworkStatus('Disconnected from room.');
+  socket.addEventListener('close', () => {
+    if (roomSocket !== socket) return;
+    roomSocket = null;
+
+    if (!joinErrorMessage) {
+      setNetworkStatus('Disconnected from room.');
+    }
   });
 
-  roomSocket.addEventListener('error', () => {
+  socket.addEventListener('error', () => {
+    if (joinErrorMessage) return;
     setNetworkStatus('Connection error. Check that your server is running.');
   });
 }
@@ -417,16 +484,20 @@ function leaveOnlineRoom() {
   myToken = null;
   currentRoomCode = null;
   remoteHistory = null;
+  remotePlayers = { white: null, black: null };
+  remoteRoomState = null;
 
   selectedSquare = null;
   legalTargets = [];
   pendingPromotion = null;
 
   game.reset();
+  defaultCamera = DEFAULT_CAMERA;
+  resetCamera();
 
   document.querySelector('#promotionDialog').classList.add('hidden');
 
-  document.querySelector('#whitePlayer').textContent = 'White Player';
+  document.querySelector('#whitePlayer strong').textContent = 'White Player';
   document.querySelector('#blackPlayer strong').textContent = 'Black Player';
 
   setOnlineControls();
@@ -435,6 +506,8 @@ function leaveOnlineRoom() {
   connectionInfo.textContent = '';
 
   resetClocks();
+  renderRemoteOverlays(null);
+  document.querySelector('#resetConfirmOverlay').hidden = true;
   refresh();
 
   document.querySelector('#leaveRoomBtn').disabled = true;
@@ -445,11 +518,15 @@ function handleRoomMessage(message) {
     mySide = message.side;
     myToken = message.token || null;
 
+    defaultCamera =
+      mySide === 'black' ? BLACK_DEFAULT_CAMERA : DEFAULT_CAMERA;
+    resetCamera();
+
     if (myToken && mySide !== 'spectator') {
-      localStorage.setItem(
-        `warroom-token-${currentRoomCode}`,
-        myToken
-      );
+      const roomTokenKey = `warroom-token-${currentRoomCode}`;
+      localStorage.setItem(roomTokenKey, myToken);
+      localStorage.setItem(`${roomTokenKey}-${mySide}`, myToken);
+      localStorage.setItem(`warroom-side-${currentRoomCode}`, mySide);
     }
 
     spectatorMode = mySide === 'spectator';
@@ -494,19 +571,33 @@ function applyRemoteState(state) {
   if (!state || !state.fen) return;
 
   try {
+    const history = Array.isArray(state.history) ? state.history : [];
+    const matchChanged =
+      game.fen() !== state.fen ||
+      (remoteHistory !== null && remoteHistory.length !== history.length);
+    if (matchChanged) {
+      selectedSquare = null;
+      legalTargets = [];
+      pendingPromotion = null;
+      document.querySelector('#promotionDialog').classList.add('hidden');
+    }
+
+    remoteRoomState = state;
     game.load(state.fen);
 
-    remoteHistory = Array.isArray(state.history)
-      ? state.history
-      : [];
+    remoteHistory = history;
 
     const white = state.players?.white;
     const black = state.players?.black;
+    remotePlayers = { white, black };
+    syncOnlineClock(state.clock, state);
+    renderRemoteOverlays(state);
+    setOnlineControls();
 
-    document.querySelector('#whitePlayer').textContent =
+    document.querySelector('#whitePlayer strong').textContent =
       white?.name || 'White Player';
 
-    document.querySelector('#blackPlayer').textContent =
+    document.querySelector('#blackPlayer strong').textContent =
       black?.name || 'Black Player';
 
     document.querySelector('#whiteState').textContent =
@@ -518,25 +609,25 @@ function applyRemoteState(state) {
     refresh();
 
     const playerCount =
-  Number(Boolean(state.players?.white)) +
-  Number(Boolean(state.players?.black));
+      Number(state.players?.white?.connected === true) +
+      Number(state.players?.black?.connected === true);
 
-document.querySelector('#roomDetailPlayers').textContent = playerCount;
+    document.querySelector('#roomDetailPlayers').textContent = playerCount;
 
-document.querySelector('#roomDetailSpectators').textContent =
-  state.spectatorCount ?? state.spectators?.length ?? '—';
+    document.querySelector('#roomDetailSpectators').textContent =
+      state.spectatorCount ?? state.spectators?.length ?? '—';
 
-const matchStatus =
-  state.status === 'waiting'
-    ? 'Waiting for opponent'
-    : state.status === 'playing'
-      ? 'Match in progress'
-      : 'Match finished';
+    const matchStatus =
+      state.status === 'waiting'
+        ? 'Waiting for opponent'
+        : state.status === 'playing'
+          ? 'Match in progress'
+          : 'Match finished';
 
-document.querySelector('#arenaNetworkStatus').textContent =
-  spectatorMode
-    ? `Spectating · ${matchStatus}`
-    : `Playing as ${mySide} · ${matchStatus}`;
+    document.querySelector('#arenaNetworkStatus').textContent =
+      spectatorMode
+        ? `Spectating · ${matchStatus}`
+        : `Playing as ${mySide} · ${matchStatus}`;
 
     if (state.status === 'waiting') {
       setNetworkStatus('Waiting for another player...');
@@ -580,6 +671,93 @@ function sendOnlineMove(from, to, promotion) {
   }
 
   roomSocket.send(JSON.stringify(message));
+}
+
+function sendOnlineAction(type, details = {}) {
+  if (!roomSocket || roomSocket.readyState !== WebSocket.OPEN) {
+    setNetworkStatus('Not connected to the game server.');
+    return;
+  }
+
+  if (spectatorMode) return;
+  roomSocket.send(JSON.stringify({ type, ...details }));
+}
+
+function renderRemoteOverlays(state) {
+  const pauseOverlay = document.querySelector('#pauseOverlay');
+  const resumeVoteButton = document.querySelector('#resumeVoteBtn');
+  const resetOverlay = document.querySelector('#resetOverlay');
+  const resetConfirmationOverlay =
+    document.querySelector('#resetConfirmOverlay');
+
+  if (
+    !pauseOverlay ||
+    !resumeVoteButton ||
+    !resetOverlay ||
+    !resetConfirmationOverlay
+  ) return;
+
+  const isPaused = onlineMode && Boolean(state?.paused);
+  pauseOverlay.hidden = !isPaused;
+  if (isPaused) {
+    resetConfirmationOverlay.hidden = true;
+    const pausedBy = state.pausedBy === 'white'
+      ? 'White'
+      : state.pausedBy === 'black'
+        ? 'Black'
+        : 'A player';
+    document.querySelector('#pauseOverlayMessage').textContent =
+      `${pausedBy} paused the match. Both players must confirm before play resumes.`;
+
+    const votes = state.resumeVotes || {};
+    const confirmedCount = Number(Boolean(votes.white)) +
+      Number(Boolean(votes.black));
+    document.querySelector('#resumeVotesText').textContent =
+      `${confirmedCount} of 2 players confirmed.`;
+
+    resumeVoteButton.hidden = spectatorMode;
+    resumeVoteButton.disabled =
+      !roomSocket ||
+      roomSocket.readyState !== WebSocket.OPEN ||
+      spectatorMode;
+    resumeVoteButton.textContent = votes[mySide]
+      ? 'WITHDRAW RESUME VOTE'
+      : 'CONFIRM RESUME';
+  }
+
+  const request = onlineMode ? state?.resetRequest : null;
+  resetOverlay.hidden = !request;
+  if (request) {
+    resetConfirmationOverlay.hidden = true;
+    const isRequester = request.requestedBy === mySide;
+    document.querySelector('#resetOverlayMessage').textContent =
+      isRequester
+        ? 'The other player must approve before the match can restart.'
+        : spectatorMode
+          ? 'The players are deciding whether to restart this match.'
+          : `${request.requestedBy === 'white' ? 'White' : 'Black'} wants to restart the match.`;
+
+    document.querySelector('#resetRequestStatus').textContent =
+      isRequester
+        ? 'Waiting for the other player...'
+        : spectatorMode
+          ? 'Waiting for the players to decide.'
+          : 'Choose whether to reset or continue the current match.';
+
+    document.querySelector('#approveResetBtn').hidden =
+      isRequester || spectatorMode;
+    document.querySelector('#declineResetBtn').hidden =
+      isRequester || spectatorMode;
+    document.querySelector('#cancelResetBtn').hidden =
+      !isRequester || spectatorMode;
+
+    ['#approveResetBtn', '#declineResetBtn', '#cancelResetBtn']
+      .forEach(selector => {
+        const button = document.querySelector(selector);
+        button.disabled =
+          !roomSocket || roomSocket.readyState !== WebSocket.OPEN;
+      });
+  }
 }
 
 
@@ -709,10 +887,36 @@ function resetClocks() {
   renderClocks();
 }
 
+function syncOnlineClock(clock, state) {
+  if (!clock) return;
+
+  stopClock();
+  remainingTime.w = clock.whiteMs;
+  remainingTime.b = clock.blackMs;
+  activeClock = clock.activeSide === 'white'
+    ? 'w'
+    : clock.activeSide === 'black'
+      ? 'b'
+      : null;
+  gameFlagged = Boolean(state?.result?.includes('wins on time'));
+  lastClockUpdate = Date.now();
+
+  if (
+    activeClock &&
+    !clock.paused &&
+    state?.status === 'playing'
+  ) {
+    clockTimer = setInterval(clockTick, 100);
+  }
+
+  renderClocks();
+}
+
 
 function updateStatus(){
   let text='';
-  if(game.isCheckmate())text=`Checkmate — ${game.turn()==='w'?'Black':'White'} wins.`;
+  if(onlineMode && remoteRoomState?.status==='finished' && remoteRoomState.result)text=remoteRoomState.result;
+  else if(game.isCheckmate())text=`Checkmate — ${game.turn()==='w'?'Black':'White'} wins.`;
   else if(game.isStalemate())text='Draw — stalemate.';
   else if(game.isThreefoldRepetition())text='Draw — threefold repetition.';
   else if(game.isInsufficientMaterial())text='Draw — insufficient material.';
@@ -729,7 +933,7 @@ const lastMove = historyForBanner.length
 
 document.querySelector('#lastMoveText').textContent =
   lastMove || 'No moves played yet';
-  document.querySelector('#turnText').textContent=game.isGameOver()?'Game finished':`${game.turn()==='w'?'White':'Black'} to move`;
+  document.querySelector('#turnText').textContent=(game.isGameOver() || (onlineMode && remoteRoomState?.status==='finished'))?'Game finished':`${game.turn()==='w'?'White':'Black'} to move`;
   document.querySelector('#whitePlayer').classList.toggle('active-player',game.turn()==='w'&&!game.isGameOver());
   document.querySelector('#blackPlayer').classList.toggle('active-player',game.turn()==='b'&&!game.isGameOver());
   // document.querySelector('#whiteState').textContent=game.turn()==='w'&&!game.isGameOver()?'To move':'Ready';
@@ -741,15 +945,23 @@ document.querySelector('#lastMoveText').textContent =
   document.querySelector('#blackState').textContent =
     game.turn() === 'b' && !game.isGameOver() ? 'To move' : 'Ready';
 } else {
+  const getOnlinePlayerState = (player, isYourTurn) => {
+    if (!player) return 'Waiting';
+    if (!player.connected) return 'Disconnected';
+    return isYourTurn ? 'Your turn' : 'Connected';
+  };
+
   document.querySelector('#whiteState').textContent =
-    mySide === 'white' && game.turn() === 'w'
-      ? 'Your turn'
-      : 'Connected';
+    getOnlinePlayerState(
+      remotePlayers.white,
+      mySide === 'white' && game.turn() === 'w' && !game.isGameOver()
+    );
 
   document.querySelector('#blackState').textContent =
-    mySide === 'black' && game.turn() === 'b'
-      ? 'Your turn'
-      : 'Connected';
+    getOnlinePlayerState(
+      remotePlayers.black,
+      mySide === 'black' && game.turn() === 'b' && !game.isGameOver()
+    );
 }
   // const history=game.history();
   const history = remoteHistory !== null
@@ -780,9 +992,16 @@ function refresh(){renderPieces(game);drawHighlights();updateStatus();}
 function selectSquare(square) {
   if (game.isGameOver() || gameFlagged) return;
 
+  if (isSingleplayer && game.turn() !== 'w') return;
+
   // Spectators and the opposing player cannot move.
   if (onlineMode) {
-    if (spectatorMode) return;
+    if (
+      spectatorMode ||
+      remoteRoomState?.status !== 'playing' ||
+      remoteRoomState?.paused ||
+      remoteRoomState?.resetRequest
+    ) return;
 
     const requiredColor = mySide === 'white' ? 'w' : 'b';
 
@@ -821,6 +1040,7 @@ function selectSquare(square) {
     selectedSquare = null;
     legalTargets = [];
     refresh();
+    scheduleComputerMove();
     return;
   }
 
@@ -831,12 +1051,72 @@ function selectSquare(square) {
       verbose: true
     });
 
+    if (onlineMode) sendOnlineAction('select', { square });
     drawHighlights();
   } else {
     selectedSquare = null;
     legalTargets = [];
     drawHighlights();
   }
+}
+
+function evaluatePosition() {
+  if (game.isCheckmate()) return game.turn() === 'w' ? -100000 : 100000;
+  if (game.isDraw()) return 0;
+
+  const values = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
+  return game.board().flat().reduce((score, piece) => {
+    if (!piece) return score;
+    return score + (piece.color === 'w' ? values[piece.type] : -values[piece.type]);
+  }, 0);
+}
+
+function chooseComputerMove() {
+  let bestScore = Infinity;
+  let bestMoves = [];
+
+  for (const move of game.moves({ verbose: true })) {
+    game.move({ from: move.from, to: move.to, promotion: move.promotion });
+    let score;
+
+    if (game.isGameOver()) {
+      score = evaluatePosition();
+    } else {
+      score = -Infinity;
+      for (const reply of game.moves({ verbose: true })) {
+        game.move({ from: reply.from, to: reply.to, promotion: reply.promotion });
+        score = Math.max(score, evaluatePosition());
+        game.undo();
+      }
+    }
+
+    game.undo();
+    if (score < bestScore) {
+      bestScore = score;
+      bestMoves = [move];
+    } else if (score === bestScore) {
+      bestMoves.push(move);
+    }
+  }
+
+  return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+}
+
+function scheduleComputerMove() {
+  if (!isSingleplayer || game.isGameOver() || game.turn() !== 'b') return;
+
+  document.querySelector('#statusText').textContent = 'Opponent is thinking…';
+  computerMoveTimer = setTimeout(() => {
+    computerMoveTimer = null;
+    if (game.isGameOver() || gameFlagged || game.turn() !== 'b') return;
+
+    const move = chooseComputerMove();
+    if (!move) return;
+
+    game.move({ from: move.from, to: move.to, promotion: move.promotion });
+    switchClock();
+    refresh();
+  }, 350);
 }
 
 function onPointerDown(event){
@@ -884,11 +1164,22 @@ document.querySelectorAll('.promotion-options button').forEach(button => {
     legalTargets = [];
 
     refresh();
+    scheduleComputerMove();
   });
 });
 
 // function restart(){game.reset();selectedSquare=null;legalTargets=[];pendingPromotion=null;document.querySelector('#promotionDialog').classList.add('hidden');refresh();}
 function restart(){
+  if (onlineMode) {
+    document.querySelector('#resetConfirmOverlay').hidden = false;
+    return;
+  }
+
+  if (computerMoveTimer) {
+    clearTimeout(computerMoveTimer);
+    computerMoveTimer = null;
+  }
+
   game.reset();
   selectedSquare=null;
   legalTargets=[];
@@ -897,18 +1188,70 @@ function restart(){
   document.querySelector('#promotionDialog').classList.add('hidden');
 
   resetClocks();
+  document.querySelector('#whitePlayer strong').textContent = 'White';
+  document.querySelector('#blackPlayer strong').textContent =
+    isSingleplayer ? 'Computer' : 'Black';
+  document.querySelector('#arenaNetworkStatus').textContent =
+    isSingleplayer ? 'Playing against the computer' : 'Offline practice';
   refresh();
 }
 document.querySelector('#newGameBtn').addEventListener('click',restart);
 document.querySelector('#resetBtn').addEventListener('click',restart);
 // document.querySelector('#undoBtn').addEventListener('click',()=>{if(game.undo()){selectedSquare=null;legalTargets=[];refresh();}});
-document.querySelector('#undoBtn').addEventListener('click',()=>{if(gameFlagged)return;if(game.undo()){selectedSquare=null;legalTargets=[];activeClock=game.turn();lastClockUpdate=Date.now();refresh();}});
-document.querySelector('#flipBtn').addEventListener('click',()=>{camera.position.x*=-1;camera.position.z*=-1;controls.update();});
+document.querySelector('#undoBtn').addEventListener('click',()=>{
+  if (onlineMode) {
+    sendOnlineAction('undo');
+    return;
+  }
+
+  if (gameFlagged) return;
+  if (computerMoveTimer) {
+    clearTimeout(computerMoveTimer);
+    computerMoveTimer = null;
+  }
+
+  const undoComputerReply =
+    isSingleplayer && game.turn() === 'w' && game.history().length > 0;
+  let undone = game.undo();
+  if (undoComputerReply) {
+    undone = game.undo() || undone;
+  }
+
+  if (undone) {
+    selectedSquare = null;
+    legalTargets = [];
+    activeClock = game.turn();
+    lastClockUpdate = Date.now();
+    refresh();
+  }
+});
+document.querySelector('#pauseBtn').addEventListener('click',()=>{
+  sendOnlineAction('pause');
+});
+document.querySelector('#resumeVoteBtn').addEventListener('click',()=>{
+  sendOnlineAction('resume-vote');
+});
+document.querySelector('#approveResetBtn').addEventListener('click',()=>{
+  sendOnlineAction('reset-response', { approve: true });
+});
+document.querySelector('#declineResetBtn').addEventListener('click',()=>{
+  sendOnlineAction('reset-response', { approve: false });
+});
+document.querySelector('#cancelResetBtn').addEventListener('click',()=>{
+  sendOnlineAction('reset-cancel');
+});
+document.querySelector('#confirmResetRequestBtn').addEventListener('click',()=>{
+  document.querySelector('#resetConfirmOverlay').hidden = true;
+  sendOnlineAction('reset-request');
+});
+document.querySelector('#cancelResetRequestBtn').addEventListener('click',()=>{
+  document.querySelector('#resetConfirmOverlay').hidden = true;
+});
 document.querySelector('#resetViewBtn').addEventListener('click',()=>{resetCamera();});
 document.querySelector('#topViewBtn').addEventListener('click',()=>{resetCamera();});
 document.querySelector('#topViewBtn2').addEventListener('click',()=>{resetCamera();});
-document.querySelector('#whiteSideBtn').addEventListener('click',()=>resetCamera(new THREE.Vector3(0,11,10)));
-document.querySelector('#blackSideBtn').addEventListener('click',()=>resetCamera(new THREE.Vector3(0,11,-10)));
+document.querySelector('#whiteSideBtn').addEventListener('click',()=>resetCamera(DEFAULT_CAMERA));
+document.querySelector('#blackSideBtn').addEventListener('click',()=>resetCamera(BLACK_DEFAULT_CAMERA));
 document.querySelector('#sideViewBtn').addEventListener('click',()=>resetCamera(new THREE.Vector3(12,7,0)));
 
 function resize(){
@@ -992,4 +1335,12 @@ resetClocks();
 refresh();
 animate();
 
-showScreen(landingScreen);
+if (gameMode === 'multiplayer') {
+  showScreen(setupScreen);
+} else {
+  document.querySelector('#arenaNetworkStatus').textContent =
+    isSingleplayer ? 'Playing against the computer' : 'Offline practice';
+  document.querySelector('#blackPlayer strong').textContent =
+    isSingleplayer ? 'Computer' : 'Black';
+  showScreen(arenaScreen);
+}
