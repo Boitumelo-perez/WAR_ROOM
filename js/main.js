@@ -426,7 +426,7 @@ function leaveOnlineRoom() {
 
   document.querySelector('#promotionDialog').classList.add('hidden');
 
-  document.querySelector('#whitePlayer strong').textContent = 'White Player';
+  document.querySelector('#whitePlayer').textContent = 'White Player';
   document.querySelector('#blackPlayer strong').textContent = 'Black Player';
 
   setOnlineControls();
@@ -503,10 +503,10 @@ function applyRemoteState(state) {
     const white = state.players?.white;
     const black = state.players?.black;
 
-    document.querySelector('#whitePlayer strong').textContent =
+    document.querySelector('#whitePlayer').textContent =
       white?.name || 'White Player';
 
-    document.querySelector('#blackPlayer strong').textContent =
+    document.querySelector('#blackPlayer').textContent =
       black?.name || 'Black Player';
 
     document.querySelector('#whiteState').textContent =
@@ -526,12 +526,17 @@ document.querySelector('#roomDetailPlayers').textContent = playerCount;
 document.querySelector('#roomDetailSpectators').textContent =
   state.spectatorCount ?? state.spectators?.length ?? '—';
 
-document.querySelector('#arenaNetworkStatus').textContent =
+const matchStatus =
   state.status === 'waiting'
     ? 'Waiting for opponent'
     : state.status === 'playing'
       ? 'Match in progress'
       : 'Match finished';
+
+document.querySelector('#arenaNetworkStatus').textContent =
+  spectatorMode
+    ? `Spectating · ${matchStatus}`
+    : `Playing as ${mySide} · ${matchStatus}`;
 
     if (state.status === 'waiting') {
       setNetworkStatus('Waiting for another player...');

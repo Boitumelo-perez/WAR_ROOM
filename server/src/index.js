@@ -401,31 +401,40 @@ export class Room {
     }
   }
 
-  publicState(state) {
-    return {
-      code: state.code,
-      fen: state.fen,
-      history: state.history,
-      status: state.status,
-      result: state.result,
+publicState(state) {
+  const sockets = this.ctx.getWebSockets();
 
-      players: {
-        white: state.players.white
-          ? {
-              name: state.players.white.name,
-              connected: state.players.white.connected
-            }
-          : null,
+  const spectatorCount = sockets.filter(socket => {
+    const attachment = socket.deserializeAttachment() || {};
+    return attachment.side === "spectator";
+  }).length;
 
-        black: state.players.black
-          ? {
-              name: state.players.black.name,
-              connected: state.players.black.connected
-            }
-          : null
-      }
-    };
-  }
+  return {
+    code: state.code,
+    fen: state.fen,
+    history: state.history,
+    status: state.status,
+    result: state.result,
+
+    spectatorCount,
+
+    players: {
+      white: state.players.white
+        ? {
+            name: state.players.white.name,
+            connected: state.players.white.connected
+          }
+        : null,
+
+      black: state.players.black
+        ? {
+            name: state.players.black.name,
+            connected: state.players.black.connected
+          }
+        : null
+    }
+  };
+}
 
   broadcast(message) {
     const payload = JSON.stringify(message);
