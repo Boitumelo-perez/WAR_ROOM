@@ -171,7 +171,9 @@ const game=new Chess();
 const setupScreen = document.querySelector('#multiplayerSetupScreen');
 const arenaScreen = document.querySelector('#arenaScreen');
 const gameMode = document.body.dataset.mode;
+const isOffline = gameMode === 'offline';
 const isSingleplayer = gameMode === 'singleplayer';
+const isLocalGame = isOffline || isSingleplayer;
 let computerMoveTimer = null;
 
 function showScreen(screen) {
@@ -183,8 +185,10 @@ function showScreen(screen) {
 
   const inArena = screen === arenaScreen;
 
-  document.querySelector('#newGameBtn').hidden = !inArena;
-  document.querySelector('#headerRoomTag').hidden = !inArena;
+  const newGameButton = document.querySelector('#newGameBtn');
+  const roomTag = document.querySelector('#headerRoomTag');
+  if (newGameButton) newGameButton.hidden = !inArena;
+  if (roomTag) roomTag.hidden = !inArena;
 
   // Recalculate the Three.js canvas dimensions after it becomes visible.
   if (inArena) {
@@ -226,6 +230,35 @@ function setNetworkStatus(message) {
   networkStatus.textContent = message;
 }
 
+let copyNoticeTimeout = null;
+const copyRoomCodeButton = document.querySelector('#headerRoomTag');
+
+async function copyRoomCode() {
+  const code = currentRoomCode;
+  const notice = document.querySelector('#copyRoomNotice');
+
+  if (!code || !notice) return;
+
+  if (copyNoticeTimeout) clearTimeout(copyNoticeTimeout);
+
+  try {
+    await navigator.clipboard.writeText(code);
+    notice.textContent = 'Room code copied to clipboard.';
+  } catch (error) {
+    console.error('Could not copy room code:', error);
+    notice.textContent = 'Could not copy room code.';
+  }
+
+  notice.hidden = false;
+  copyNoticeTimeout = setTimeout(() => {
+    notice.hidden = true;
+  }, 2200);
+}
+
+if (copyRoomCodeButton) {
+  copyRoomCodeButton.addEventListener('click', copyRoomCode);
+}
+
 function setOnlineControls() {
   const newGameButton = document.querySelector('#newGameBtn');
   if (newGameButton) newGameButton.disabled = onlineMode;
@@ -238,8 +271,13 @@ function setOnlineControls() {
     if (undoButton) undoButton.disabled = false;
     if (resetButton) resetButton.disabled = false;
     if (pauseButton) {
-      pauseButton.hidden = true;
-      pauseButton.disabled = true;
+      pauseButton.hidden = !isLocalGame;
+      pauseButton.textContent = localClockPaused ? 'Resume' : 'Pause';
+      pauseButton.disabled =
+        !isLocalGame ||
+        (localClockPaused
+          ? (!activeClock || gameFlagged)
+          : (!clockTimer || !activeClock || gameFlagged));
     }
     return;
   }
@@ -697,32 +735,48 @@ function renderRemoteOverlays(state) {
     !resetConfirmationOverlay
   ) return;
 
-  const isPaused = onlineMode && Boolean(state?.paused);
+  const isOnlinePaused = onlineMode && Boolean(state?.paused);
+  const isLocalPaused = isLocalGame && localClockPaused;
+  const isPaused = isOnlinePaused || isLocalPaused;
   pauseOverlay.hidden = !isPaused;
   if (isPaused) {
     resetConfirmationOverlay.hidden = true;
-    const pausedBy = state.pausedBy === 'white'
-      ? 'White'
-      : state.pausedBy === 'black'
-        ? 'Black'
-        : 'A player';
-    document.querySelector('#pauseOverlayMessage').textContent =
-      `${pausedBy} paused the match. Both players must confirm before play resumes.`;
+    if (isLocalPaused) {
+      document.querySelector('#pauseOverlayTitle').textContent =
+        'The match is paused.';
+      document.querySelector('#pauseOverlayMessage').textContent =
+        'The board and clock are paused. Resume when you are ready.';
+      document.querySelector('#resumeVotesText').hidden = true;
+      resumeVoteButton.hidden = false;
+      resumeVoteButton.disabled = false;
+      resumeVoteButton.textContent = 'RESUME GAME';
+    } else {
+      const pausedBy = state.pausedBy === 'white'
+        ? 'White'
+        : state.pausedBy === 'black'
+          ? 'Black'
+          : 'A player';
+      document.querySelector('#pauseOverlayTitle').textContent =
+        'The match is paused.';
+      document.querySelector('#pauseOverlayMessage').textContent =
+        `${pausedBy} paused the match. Both players must confirm before play resumes.`;
 
-    const votes = state.resumeVotes || {};
-    const confirmedCount = Number(Boolean(votes.white)) +
-      Number(Boolean(votes.black));
-    document.querySelector('#resumeVotesText').textContent =
-      `${confirmedCount} of 2 players confirmed.`;
+      const votes = state.resumeVotes || {};
+      const confirmedCount = Number(Boolean(votes.white)) +
+        Number(Boolean(votes.black));
+      const voteCount = document.querySelector('#resumeVotesText');
+      voteCount.hidden = false;
+      voteCount.textContent = `${confirmedCount} of 2 players confirmed.`;
 
-    resumeVoteButton.hidden = spectatorMode;
-    resumeVoteButton.disabled =
-      !roomSocket ||
-      roomSocket.readyState !== WebSocket.OPEN ||
-      spectatorMode;
-    resumeVoteButton.textContent = votes[mySide]
-      ? 'WITHDRAW RESUME VOTE'
-      : 'CONFIRM RESUME';
+      resumeVoteButton.hidden = spectatorMode;
+      resumeVoteButton.disabled =
+        !roomSocket ||
+        roomSocket.readyState !== WebSocket.OPEN ||
+        spectatorMode;
+      resumeVoteButton.textContent = votes[mySide]
+        ? 'WITHDRAW RESUME VOTE'
+        : 'CONFIRM RESUME';
+    }
   }
 
   const request = onlineMode ? state?.resetRequest : null;
@@ -776,6 +830,7 @@ let activeClock = 'w';
 let lastClockUpdate = Date.now();
 let clockTimer = null;
 let gameFlagged = false;
+let localClockPaused = false;
 
 function formatClock(milliseconds) {
   const totalSeconds = Math.ceil(Math.max(0, milliseconds) / 1000);
@@ -832,6 +887,7 @@ function clockTick() {
 
     stopClock();
     renderClocks();
+    setOnlineControls();
 
     document.querySelector('#statusText').textContent =
       `Time expired. ${winner} wins on time.`;
@@ -865,11 +921,42 @@ function switchClock() {
   lastClockUpdate = Date.now();
 
   // Start the clock only after the first move.
-  if (!clockTimer) {
+  if (!clockTimer && !localClockPaused) {
     clockTimer = setInterval(clockTick, 100);
   }
 
   renderClocks();
+  setOnlineControls();
+  renderRemoteOverlays(remoteRoomState);
+}
+
+function toggleLocalClockPause() {
+  if (localClockPaused) {
+    localClockPaused = false;
+    if (activeClock && !gameFlagged && !game.isGameOver()) {
+      lastClockUpdate = Date.now();
+      clockTimer = setInterval(clockTick, 100);
+    }
+
+    if (isSingleplayer && game.turn() === 'b' && !computerMoveTimer) {
+      scheduleComputerMove();
+    }
+  } else if (clockTimer && activeClock) {
+    if (computerMoveTimer) {
+      clearTimeout(computerMoveTimer);
+      computerMoveTimer = null;
+    }
+
+    clockTick();
+    if (clockTimer && activeClock) {
+      clearInterval(clockTimer);
+      clockTimer = null;
+      localClockPaused = true;
+    }
+  }
+
+  setOnlineControls();
+  renderRemoteOverlays(remoteRoomState);
 }
 
 function resetClocks() {
@@ -882,9 +969,12 @@ function resetClocks() {
   activeClock = null;
 
   gameFlagged = false;
+  localClockPaused = false;
   lastClockUpdate = Date.now();
 
   renderClocks();
+  setOnlineControls();
+  renderRemoteOverlays(remoteRoomState);
 }
 
 function syncOnlineClock(clock, state) {
@@ -991,6 +1081,7 @@ function refresh(){renderPieces(game);drawHighlights();updateStatus();}
 
 function selectSquare(square) {
   if (game.isGameOver() || gameFlagged) return;
+  if (isLocalGame && localClockPaused) return;
 
   if (isSingleplayer && game.turn() !== 'w') return;
 
@@ -1103,12 +1194,22 @@ function chooseComputerMove() {
 }
 
 function scheduleComputerMove() {
-  if (!isSingleplayer || game.isGameOver() || game.turn() !== 'b') return;
+  if (
+    !isSingleplayer ||
+    localClockPaused ||
+    game.isGameOver() ||
+    game.turn() !== 'b'
+  ) return;
 
   document.querySelector('#statusText').textContent = 'Opponent is thinking…';
   computerMoveTimer = setTimeout(() => {
     computerMoveTimer = null;
-    if (game.isGameOver() || gameFlagged || game.turn() !== 'b') return;
+    if (
+      game.isGameOver() ||
+      gameFlagged ||
+      localClockPaused ||
+      game.turn() !== 'b'
+    ) return;
 
     const move = chooseComputerMove();
     if (!move) return;
@@ -1195,7 +1296,8 @@ function restart(){
     isSingleplayer ? 'Playing against the computer' : 'Offline practice';
   refresh();
 }
-document.querySelector('#newGameBtn').addEventListener('click',restart);
+const newGameButton = document.querySelector('#newGameBtn');
+if (newGameButton) newGameButton.addEventListener('click',restart);
 document.querySelector('#resetBtn').addEventListener('click',restart);
 // document.querySelector('#undoBtn').addEventListener('click',()=>{if(game.undo()){selectedSquare=null;legalTargets=[];refresh();}});
 document.querySelector('#undoBtn').addEventListener('click',()=>{
@@ -1226,10 +1328,19 @@ document.querySelector('#undoBtn').addEventListener('click',()=>{
   }
 });
 document.querySelector('#pauseBtn').addEventListener('click',()=>{
-  sendOnlineAction('pause');
+  if (!isLocalGame) {
+    sendOnlineAction('pause');
+    return;
+  }
+
+  toggleLocalClockPause();
 });
 document.querySelector('#resumeVoteBtn').addEventListener('click',()=>{
-  sendOnlineAction('resume-vote');
+  if (isLocalGame) {
+    toggleLocalClockPause();
+  } else {
+    sendOnlineAction('resume-vote');
+  }
 });
 document.querySelector('#approveResetBtn').addEventListener('click',()=>{
   sendOnlineAction('reset-response', { approve: true });
@@ -1343,4 +1454,5 @@ if (gameMode === 'multiplayer') {
   document.querySelector('#blackPlayer strong').textContent =
     isSingleplayer ? 'Computer' : 'Black';
   showScreen(arenaScreen);
+  setOnlineControls();
 }

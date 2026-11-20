@@ -29,8 +29,13 @@
                 </div>
             </a>
             <div class="header-actions">
-                <span class="room-tag" id="headerRoomTag" hidden>ROOM <strong id="headerRoomCode">------</strong></span>
-                <button id="newGameBtn" class="secondary-button" hidden>New Game</button>
+                <button type="button" class="room-tag room-code-copy" id="headerRoomTag"
+                    aria-label="Copy room code to clipboard" title="Copy room code" hidden>
+                    ROOM <strong id="headerRoomCode">------</strong>
+                </button>
+                <span id="copyRoomNotice" class="copy-room-notice" role="status"
+                    aria-live="polite" hidden></span>
+                <a class="gold-button header-home-button" href="../">HOME</a>
             </div>
         </header>
         <div id="gameApp" aria-live="polite">Loading game…</div>

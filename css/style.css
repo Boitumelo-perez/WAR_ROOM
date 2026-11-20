@@ -107,9 +107,20 @@ button:disabled {
 }
 
 .header-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-home-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 15px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-decoration: none;
 }
 
 .room-tag {
@@ -125,6 +136,37 @@ button:disabled {
   padding-left: 12px;
   border-left: 1px solid #39342c;
   color: var(--muted);
+}
+
+.room-code-copy {
+  padding: 8px 10px;
+  color: #c9c4b9;
+  font: inherit;
+  background: #ffffff06;
+  border: 1px solid #ffffff10;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.room-code-copy:hover {
+  color: var(--gold2);
+  border-color: var(--gold);
+  background: #d7a84d12;
+}
+
+.copy-room-notice {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 0;
+  padding: 8px 11px;
+  color: var(--text);
+  background: #17191f;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px #0008;
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .live-dot {
@@ -712,6 +754,10 @@ footer {
 
   .room-tag {
     display: none;
+  }
+
+  .room-tag.room-code-copy {
+    display: flex;
   }
 
   .screen {
